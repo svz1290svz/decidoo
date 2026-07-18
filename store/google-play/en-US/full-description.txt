@@ -1,0 +1,25 @@
+Decidoo removes the stress from choosing what to eat.
+
+Choose your goal, budget, and meal time. Decidoo evaluates the available options and gives you one clear recommendation instead of an endless list.
+
+FEATURES
+
+• One-tap meal decisions
+• Personalized recommendations by meal time, budget, and mood
+• Explainable match reasons
+• Favorites and recent decision history
+• Global food discovery
+• English, Turkish, German, French, Spanish, and Arabic
+• Right-to-left interface support for Arabic
+• No account required in version 1.0.0
+• No advertising or location tracking in version 1.0.0
+
+DECIDE FASTER
+
+Decidoo is designed around a simple principle: fewer choices, better decisions. The recommendation engine scores food options using your current preferences and reduces repetitive suggestions.
+
+PRIVACY-FIRST RELEASE
+
+Version 1.0.0 processes preferences on the device and does not require account creation. The current release does not transmit personal information to a Decidoo server.
+
+Decidoo is the fastest way to answer one everyday question: What should I eat?
