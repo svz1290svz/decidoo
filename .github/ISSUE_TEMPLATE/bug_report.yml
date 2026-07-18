@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible Decidoo problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Android, iOS, Web, Other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: 0.2.0+2
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the language, device and network conditions.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open...\n2. Tap...\n3. See..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed personal data and API keys from this report.
+          required: true
