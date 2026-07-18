@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a product or platform improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What user need or market problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options: [Recommendation engine, Mobile UI, Localization, Restaurant data, Accounts, Payments, Analytics, Infrastructure]
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Success metric
+      description: Define how we know the feature worked.
