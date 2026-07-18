@@ -15,49 +15,53 @@ class DecisionEngine {
     final candidates = catalog
         .where((food) => !food.tags.any(request.excludedTags.contains))
         .toList(growable: false);
-    final safeCandidates = candidates.isEmpty ? catalog : candidates;
 
-    final scored = safeCandidates.map((food) {
+    if (candidates.isEmpty) {
+      throw StateError('No food matches the active dietary restrictions.');
+    }
+
+    final scored = candidates.map((food) {
       var score = food.popularity * 20;
-      final reasons = <String>[];
+      final reasonKeys = <String>[];
 
       if (food.mealMoments.contains(request.mealMoment)) {
         score += 38;
-        reasons.add('Bu öğün için güçlü eşleşme');
+        reasonKeys.add('reasonMeal');
       }
       if (food.priceLevel == request.priceLevel) {
         score += 24;
-        reasons.add('Bütçene uyuyor');
+        reasonKeys.add('reasonBudget');
       }
-      if (request.goal == FoodGoal.surpriseMe || food.goals.contains(request.goal)) {
+      if (request.goal == FoodGoal.surpriseMe ||
+          food.goals.contains(request.goal)) {
         score += 28;
-        reasons.add('Şu anki isteğine uyuyor');
+        reasonKeys.add('reasonGoal');
       }
       if (!request.previousFoodIds.contains(food.id)) {
         score += 12;
-        reasons.add('Son seçimlerinden farklı');
+        reasonKeys.add('reasonDifferent');
       } else {
         score -= 18;
       }
 
       score += _random.nextDouble() * 7;
-      return _ScoredFood(food, score, reasons);
+      return _ScoredFood(food, score, reasonKeys);
     }).toList()
       ..sort((a, b) => b.score.compareTo(a.score));
 
     final winner = scored.first;
     return DecisionResult(
       food: winner.food,
-      confidence: (winner.score / 125).clamp(.55, .98),
-      reasons: winner.reasons.take(3).toList(growable: false),
+      confidence: (winner.score / 125).clamp(.55, .98).toDouble(),
+      reasons: winner.reasonKeys.take(3).toList(growable: false),
     );
   }
 }
 
 class _ScoredFood {
-  const _ScoredFood(this.food, this.score, this.reasons);
+  const _ScoredFood(this.food, this.score, this.reasonKeys);
 
   final Food food;
   final double score;
-  final List<String> reasons;
+  final List<String> reasonKeys;
 }
