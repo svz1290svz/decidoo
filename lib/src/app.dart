@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/food_catalog.dart';
 import 'domain/food.dart';
+import 'localization/app_localizations.dart';
 import 'services/decision_engine.dart';
 
-class DecidooApp extends StatelessWidget {
+class DecidooApp extends StatefulWidget {
   const DecidooApp({super.key});
+
+  @override
+  State<DecidooApp> createState() => _DecidooAppState();
+}
+
+class _DecidooAppState extends State<DecidooApp> {
+  Locale? _locale;
 
   @override
   Widget build(BuildContext context) {
@@ -13,26 +22,60 @@ class DecidooApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Decidoo',
+      locale: _locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      localeResolutionCallback: (deviceLocale, supportedLocales) {
+        if (_locale != null) return _locale;
+        if (deviceLocale == null) return const Locale('en');
+        return supportedLocales.firstWhere(
+          (locale) => locale.languageCode == deviceLocale.languageCode,
+          orElse: () => const Locale('en'),
+        );
+      },
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seed,
+          brightness: Brightness.light,
+        ),
         scaffoldBackgroundColor: const Color(0xFFF8F7F4),
         cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(58),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ),
-      home: const DecidooShell(),
+      home: DecidooShell(
+        selectedLocale: _locale,
+        onLocaleChanged: (locale) => setState(() => _locale = locale),
+      ),
     );
   }
 }
 
 class DecidooShell extends StatefulWidget {
-  const DecidooShell({super.key});
+  const DecidooShell({
+    super.key,
+    required this.selectedLocale,
+    required this.onLocaleChanged,
+  });
+
+  final Locale? selectedLocale;
+  final ValueChanged<Locale> onLocaleChanged;
 
   @override
   State<DecidooShell> createState() => _DecidooShellState();
@@ -64,8 +107,48 @@ class _DecidooShellState extends State<DecidooShell> {
     });
   }
 
+  void _showLanguagePicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.t('language'),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                ...AppLocalizations.supportedLocales.map(
+                  (locale) => RadioListTile<String>(
+                    value: locale.languageCode,
+                    groupValue: Localizations.localeOf(context).languageCode,
+                    title: Text(AppLocalizations(locale).languageName),
+                    onChanged: (_) {
+                      widget.onLocaleChanged(locale);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final pages = [
       _HomePage(
         goal: _goal,
@@ -77,10 +160,15 @@ class _DecidooShellState extends State<DecidooShell> {
         onPriceChanged: (value) => setState(() => _price = value),
         onMealChanged: (value) => setState(() => _meal = value),
         onDecide: _decide,
+        onLanguage: _showLanguagePicker,
         onFavorite: () {
           final id = _result?.food.id;
           if (id == null) return;
-          setState(() => _favorites.contains(id) ? _favorites.remove(id) : _favorites.add(id));
+          setState(() {
+            _favorites.contains(id)
+                ? _favorites.remove(id)
+                : _favorites.add(id);
+          });
         },
       ),
       _ExplorePage(favorites: _favorites),
@@ -92,10 +180,21 @@ class _DecidooShellState extends State<DecidooShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (value) => setState(() => _tab = value),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome), label: 'Karar'),
-          NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Keşfet'),
-          NavigationDestination(icon: Icon(Icons.history_rounded), label: 'Geçmiş'),
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.auto_awesome_outlined),
+            selectedIcon: const Icon(Icons.auto_awesome),
+            label: l10n.t('decision'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.explore_outlined),
+            selectedIcon: const Icon(Icons.explore),
+            label: l10n.t('explore'),
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.history_rounded),
+            label: l10n.t('history'),
+          ),
         ],
       ),
     );
@@ -113,6 +212,7 @@ class _HomePage extends StatelessWidget {
     required this.onPriceChanged,
     required this.onMealChanged,
     required this.onDecide,
+    required this.onLanguage,
     required this.onFavorite,
   });
 
@@ -125,44 +225,109 @@ class _HomePage extends StatelessWidget {
   final ValueChanged<PriceLevel> onPriceChanged;
   final ValueChanged<MealMoment> onMealChanged;
   final VoidCallback onDecide;
+  final VoidCallback onLanguage;
   final VoidCallback onFavorite;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 36),
       children: [
-        Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('decidoo', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1.8)),
-            const Text('Kararsızlığı kapat. Hayatına devam et.', style: TextStyle(color: Colors.black54)),
-          ])),
-          const CircleAvatar(child: Icon(Icons.person_outline_rounded)),
-        ]),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'decidoo',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.8,
+                        ),
+                  ),
+                  Text(
+                    l10n.t('tagline'),
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+            IconButton.filledTonal(
+              tooltip: l10n.t('language'),
+              onPressed: onLanguage,
+              icon: const Icon(Icons.language_rounded),
+            ),
+          ],
+        ),
         const SizedBox(height: 28),
         Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF241915), Color(0xFF5D2B1F)]),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF241915), Color(0xFF5D2B1F)],
+            ),
             borderRadius: BorderRadius.circular(30),
           ),
-          child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Bugün ne yesem?', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1)),
-            SizedBox(height: 8),
-            Text('Birkaç saniyede sana özel tek bir güçlü karar.', style: TextStyle(color: Colors.white70, fontSize: 15)),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.t('today'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.t('heroSubtitle'),
+                style: const TextStyle(color: Colors.white70, fontSize: 15),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 28),
-        _Selector<FoodGoal>(title: 'Nasıl hissetmek istiyorsun?', value: goal, values: FoodGoal.values, label: _goalLabel, onChanged: onGoalChanged),
+        _Selector<FoodGoal>(
+          title: l10n.t('goalTitle'),
+          value: goal,
+          values: FoodGoal.values,
+          label: (value) => _goalLabel(l10n, value),
+          onChanged: onGoalChanged,
+        ),
         const SizedBox(height: 22),
-        _Selector<PriceLevel>(title: 'Bütçe', value: price, values: PriceLevel.values, label: _priceLabel, onChanged: onPriceChanged),
+        _Selector<PriceLevel>(
+          title: l10n.t('budget'),
+          value: price,
+          values: PriceLevel.values,
+          label: (value) => _priceLabel(l10n, value),
+          onChanged: onPriceChanged,
+        ),
         const SizedBox(height: 22),
-        _Selector<MealMoment>(title: 'Öğün', value: meal, values: MealMoment.values, label: _mealLabel, onChanged: onMealChanged),
+        _Selector<MealMoment>(
+          title: l10n.t('meal'),
+          value: meal,
+          values: MealMoment.values,
+          label: (value) => _mealLabel(l10n, value),
+          onChanged: onMealChanged,
+        ),
         const SizedBox(height: 28),
-        FilledButton.icon(onPressed: onDecide, icon: const Icon(Icons.bolt_rounded), label: const Text('Decidoo karar versin')),
+        FilledButton.icon(
+          onPressed: onDecide,
+          icon: const Icon(Icons.bolt_rounded),
+          label: Text(l10n.t('decide')),
+        ),
         if (result != null) ...[
           const SizedBox(height: 26),
-          _ResultCard(result: result!, isFavorite: isFavorite, onFavorite: onFavorite, onAgain: onDecide),
+          _ResultCard(
+            result: result!,
+            isFavorite: isFavorite,
+            onFavorite: onFavorite,
+            onAgain: onDecide,
+          ),
         ],
       ],
     );
@@ -170,7 +335,14 @@ class _HomePage extends StatelessWidget {
 }
 
 class _Selector<T> extends StatelessWidget {
-  const _Selector({required this.title, required this.value, required this.values, required this.label, required this.onChanged});
+  const _Selector({
+    required this.title,
+    required this.value,
+    required this.values,
+    required this.label,
+    required this.onChanged,
+  });
+
   final String title;
   final T value;
   final List<T> values;
@@ -178,15 +350,39 @@ class _Selector<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-    const SizedBox(height: 11),
-    Wrap(spacing: 8, runSpacing: 8, children: values.map((item) => ChoiceChip(label: Text(label(item)), selected: item == value, onSelected: (_) => onChanged(item))).toList()),
-  ]);
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 11),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: values
+                .map(
+                  (item) => ChoiceChip(
+                    label: Text(label(item)),
+                    selected: item == value,
+                    onSelected: (_) => onChanged(item),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      );
 }
 
 class _ResultCard extends StatelessWidget {
-  const _ResultCard({required this.result, required this.isFavorite, required this.onFavorite, required this.onAgain});
+  const _ResultCard({
+    required this.result,
+    required this.isFavorite,
+    required this.onFavorite,
+    required this.onAgain,
+  });
+
   final DecisionResult result;
   final bool isFavorite;
   final VoidCallback onFavorite;
@@ -194,56 +390,205 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final food = result.food;
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 24, offset: Offset(0, 10))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(food.emoji, style: const TextStyle(fontSize: 56)),
-          const Spacer(),
-          IconButton.filledTonal(onPressed: onFavorite, icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border)),
-        ]),
-        const SizedBox(height: 14),
-        Text(food.name, style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: -.7)),
-        const SizedBox(height: 5),
-        Text('${food.cuisine} • ${food.estimatedMinutes} dk • %${(result.confidence * 100).round()} eşleşme', style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 14),
-        Text(food.description, style: const TextStyle(fontSize: 16, height: 1.4)),
-        const SizedBox(height: 15),
-        ...result.reasons.map((reason) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(children: [const Icon(Icons.check_circle_rounded, size: 18), const SizedBox(width: 8), Text(reason)]))),
-        const SizedBox(height: 16),
-        OutlinedButton.icon(onPressed: onAgain, icon: const Icon(Icons.refresh_rounded), label: const Text('Başka bir karar')),
-      ]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(food.emoji, style: const TextStyle(fontSize: 56)),
+              const Spacer(),
+              IconButton.filledTonal(
+                onPressed: onFavorite,
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            food.name,
+            style: const TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -.7,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '${food.cuisine} • ${food.estimatedMinutes} ${l10n.t('minutes')} • '
+            '%${(result.confidence * 100).round()} ${l10n.t('match')}',
+            style: const TextStyle(
+              color: Colors.black54,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(food.description, style: const TextStyle(fontSize: 16, height: 1.4)),
+          const SizedBox(height: 15),
+          ...result.reasons.map(
+            (reason) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(reason)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: onAgain,
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(l10n.t('again')),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _ExplorePage extends StatelessWidget {
   const _ExplorePage({required this.favorites});
+
   final Set<String> favorites;
+
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
-    Text('Keşfet', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900)),
-    const SizedBox(height: 6),
-    const Text('Dünyadan popüler seçimler', style: TextStyle(color: Colors.black54)),
-    const SizedBox(height: 22),
-    ...foodCatalog.map((food) => Card(child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9), leading: Text(food.emoji, style: const TextStyle(fontSize: 32)), title: Text(food.name, style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('${food.cuisine} • ${food.estimatedMinutes} dk'), trailing: Icon(favorites.contains(food.id) ? Icons.favorite : Icons.chevron_right_rounded))),
-  ]);
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text(
+          l10n.t('explore'),
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 6),
+        Text(l10n.t('popular'), style: const TextStyle(color: Colors.black54)),
+        const SizedBox(height: 22),
+        ...foodCatalog.map(
+          (food) => Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 9,
+              ),
+              leading: Text(food.emoji, style: const TextStyle(fontSize: 32)),
+              title: Text(
+                food.name,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text(
+                '${food.cuisine} • ${food.estimatedMinutes} ${l10n.t('minutes')}',
+              ),
+              trailing: Icon(
+                favorites.contains(food.id)
+                    ? Icons.favorite
+                    : Icons.chevron_right_rounded,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _HistoryPage extends StatelessWidget {
   const _HistoryPage({required this.history});
+
   final List<DecisionResult> history;
+
   @override
-  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(20), children: [
-    Text('Geçmiş', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900)),
-    const SizedBox(height: 20),
-    if (history.isEmpty) const Padding(padding: EdgeInsets.only(top: 80), child: Center(child: Column(children: [Icon(Icons.history_toggle_off_rounded, size: 52, color: Colors.black26), SizedBox(height: 12), Text('İlk kararın burada görünecek.')])))
-    else ...history.map((item) => Card(child: ListTile(leading: Text(item.food.emoji, style: const TextStyle(fontSize: 30)), title: Text(item.food.name, style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('%${(item.confidence * 100).round()} eşleşme')))),
-  ]);
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text(
+          l10n.t('history'),
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 20),
+        if (history.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 80),
+            child: Center(
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.history_toggle_off_rounded,
+                    size: 52,
+                    color: Colors.black26,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(l10n.t('emptyHistory')),
+                ],
+              ),
+            ),
+          )
+        else
+          ...history.map(
+            (item) => Card(
+              child: ListTile(
+                leading: Text(
+                  item.food.emoji,
+                  style: const TextStyle(fontSize: 30),
+                ),
+                title: Text(
+                  item.food.name,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(
+                  '%${(item.confidence * 100).round()} ${l10n.t('match')}',
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
-String _goalLabel(FoodGoal value) => switch (value) { FoodGoal.surpriseMe => 'Şaşırt beni', FoodGoal.light => 'Hafif', FoodGoal.filling => 'Doyurucu', FoodGoal.healthy => 'Sağlıklı', FoodGoal.comfort => 'Keyif' };
-String _priceLabel(PriceLevel value) => switch (value) { PriceLevel.budget => 'Ekonomik', PriceLevel.standard => 'Standart', PriceLevel.premium => 'Premium' };
-String _mealLabel(MealMoment value) => switch (value) { MealMoment.breakfast => 'Kahvaltı', MealMoment.lunch => 'Öğle', MealMoment.dinner => 'Akşam', MealMoment.lateNight => 'Gece' };
+String _goalLabel(AppLocalizations l10n, FoodGoal value) => switch (value) {
+      FoodGoal.surpriseMe => l10n.t('surprise'),
+      FoodGoal.light => l10n.t('light'),
+      FoodGoal.filling => l10n.t('filling'),
+      FoodGoal.healthy => l10n.t('healthy'),
+      FoodGoal.comfort => l10n.t('comfort'),
+    };
+
+String _priceLabel(AppLocalizations l10n, PriceLevel value) => switch (value) {
+      PriceLevel.budget => l10n.t('budgetLow'),
+      PriceLevel.standard => l10n.t('standard'),
+      PriceLevel.premium => l10n.t('premium'),
+    };
+
+String _mealLabel(AppLocalizations l10n, MealMoment value) => switch (value) {
+      MealMoment.breakfast => l10n.t('breakfast'),
+      MealMoment.lunch => l10n.t('lunch'),
+      MealMoment.dinner => l10n.t('dinner'),
+      MealMoment.lateNight => l10n.t('lateNight'),
+    };
