@@ -1,0 +1,10 @@
+# Default owner
+* @svz1290svz
+
+# Product-critical recommendation logic
+/lib/src/services/ @svz1290svz
+/lib/src/domain/ @svz1290svz
+
+# Release and security configuration
+/.github/ @svz1290svz
+/SECURITY.md @svz1290svz
