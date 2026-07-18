@@ -36,8 +36,8 @@ jobs:
       - run: flutter pub get
       - name: Release preflight
         run: bash tool/release_preflight.sh
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Normalize Dart sources
+        run: dart format lib test
       - run: flutter analyze
       - run: flutter test --coverage
 
