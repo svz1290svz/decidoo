@@ -82,8 +82,6 @@ jobs:
       - name: Generate iOS project
         run: flutter create --platforms=ios --org com.decidoo .
       - run: flutter pub get
-      - name: Install CocoaPods dependencies
-        run: cd ios && pod install --repo-update
       - name: Build iOS release without signing
         run: flutter build ios --release --no-codesign --build-name=1.0.0 --build-number=1
       - name: Archive unsigned app bundle
