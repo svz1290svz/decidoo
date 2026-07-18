@@ -1,0 +1,12 @@
+Decidoo version 1.0.0 does not require an account or login.
+
+Core review flow:
+1. Open the app.
+2. Select a goal, budget, and meal time.
+3. Tap the decision button.
+4. Review the recommendation and match reasons.
+5. Open Explore, History, and Revenue Hub from the bottom navigation.
+
+The Premium, restaurant plan, and sponsored-placement sections are informational product concepts in version 1.0.0. They do not initiate payment, unlock digital content, or transmit purchase data. No external purchase link is presented.
+
+The app does not request location, camera, microphone, contacts, health, photo-library, or tracking permission.

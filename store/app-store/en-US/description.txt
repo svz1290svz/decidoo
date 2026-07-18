@@ -1,0 +1,19 @@
+Decidoo makes one everyday decision easier: what should you eat?
+
+Select your meal time, budget, and current goal. Decidoo scores the available food choices and gives you one clear recommendation with simple reasons behind the match.
+
+WHY DECIDOO
+
+• One-tap meal decisions
+• Personalized recommendations
+• Clear match explanations
+• Favorites and recent decision history
+• Global food discovery
+• Six interface languages
+• Arabic right-to-left support
+• No account required in version 1.0.0
+• No advertising or location tracking in version 1.0.0
+
+Decidoo is designed to reduce decision fatigue. Instead of showing hundreds of options, it helps you move forward with one trusted choice.
+
+Version 1.0.0 processes preferences on the device and does not transmit personal information to a Decidoo server.
