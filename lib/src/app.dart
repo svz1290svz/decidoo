@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'data/food_catalog.dart';
 import 'domain/food.dart';
 import 'localization/app_localizations.dart';
+import 'presentation/revenue_hub_page.dart';
 import 'services/decision_engine.dart';
 
 class DecidooApp extends StatefulWidget {
@@ -18,7 +19,6 @@ class _DecidooAppState extends State<DecidooApp> {
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFFFF5A36);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Decidoo',
@@ -40,27 +40,17 @@ class _DecidooAppState extends State<DecidooApp> {
       },
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seed,
-          brightness: Brightness.light,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF5A36)),
         scaffoldBackgroundColor: const Color(0xFFF8F7F4),
-        cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero),
+        cardTheme: const CardThemeData(elevation: 0),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(58),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
+            minimumSize: const Size.fromHeight(56),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           ),
         ),
       ),
       home: DecidooShell(
-        selectedLocale: _locale,
         onLocaleChanged: (locale) => setState(() => _locale = locale),
       ),
     );
@@ -68,13 +58,8 @@ class _DecidooAppState extends State<DecidooApp> {
 }
 
 class DecidooShell extends StatefulWidget {
-  const DecidooShell({
-    super.key,
-    required this.selectedLocale,
-    required this.onLocaleChanged,
-  });
+  const DecidooShell({super.key, required this.onLocaleChanged});
 
-  final Locale? selectedLocale;
   final ValueChanged<Locale> onLocaleChanged;
 
   @override
@@ -98,7 +83,7 @@ class _DecidooShellState extends State<DecidooShell> {
         goal: _goal,
         priceLevel: _price,
         mealMoment: _meal,
-        previousFoodIds: _history.take(5).map((e) => e.food.id).toSet(),
+        previousFoodIds: _history.take(5).map((item) => item.food.id).toSet(),
       ),
     );
     setState(() {
@@ -111,38 +96,23 @@ class _DecidooShellState extends State<DecidooShell> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context);
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.t('language'),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: AppLocalizations.supportedLocales
+              .map(
+                (locale) => ListTile(
+                  leading: const Icon(Icons.language_rounded),
+                  title: Text(AppLocalizations(locale).languageName),
+                  onTap: () {
+                    widget.onLocaleChanged(locale);
+                    Navigator.pop(context);
+                  },
                 ),
-                const SizedBox(height: 12),
-                ...AppLocalizations.supportedLocales.map(
-                  (locale) => RadioListTile<String>(
-                    value: locale.languageCode,
-                    groupValue: Localizations.localeOf(context).languageCode,
-                    title: Text(AppLocalizations(locale).languageName),
-                    onChanged: (_) {
-                      widget.onLocaleChanged(locale);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 
@@ -150,12 +120,12 @@ class _DecidooShellState extends State<DecidooShell> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final pages = [
-      _HomePage(
+      _DecisionPage(
         goal: _goal,
         price: _price,
         meal: _meal,
         result: _result,
-        isFavorite: _result != null && _favorites.contains(_result!.food.id),
+        favorite: _result != null && _favorites.contains(_result!.food.id),
         onGoalChanged: (value) => setState(() => _goal = value),
         onPriceChanged: (value) => setState(() => _price = value),
         onMealChanged: (value) => setState(() => _meal = value),
@@ -164,15 +134,12 @@ class _DecidooShellState extends State<DecidooShell> {
         onFavorite: () {
           final id = _result?.food.id;
           if (id == null) return;
-          setState(() {
-            _favorites.contains(id)
-                ? _favorites.remove(id)
-                : _favorites.add(id);
-          });
+          setState(() => _favorites.contains(id) ? _favorites.remove(id) : _favorites.add(id));
         },
       ),
       _ExplorePage(favorites: _favorites),
       _HistoryPage(history: _history),
+      const RevenueHubPage(),
     ];
 
     return Scaffold(
@@ -195,19 +162,24 @@ class _DecidooShellState extends State<DecidooShell> {
             icon: const Icon(Icons.history_rounded),
             label: l10n.t('history'),
           ),
+          const NavigationDestination(
+            icon: Icon(Icons.payments_outlined),
+            selectedIcon: Icon(Icons.payments_rounded),
+            label: 'Revenue',
+          ),
         ],
       ),
     );
   }
 }
 
-class _HomePage extends StatelessWidget {
-  const _HomePage({
+class _DecisionPage extends StatelessWidget {
+  const _DecisionPage({
     required this.goal,
     required this.price,
     required this.meal,
     required this.result,
-    required this.isFavorite,
+    required this.favorite,
     required this.onGoalChanged,
     required this.onPriceChanged,
     required this.onMealChanged,
@@ -220,7 +192,7 @@ class _HomePage extends StatelessWidget {
   final PriceLevel price;
   final MealMoment meal;
   final DecisionResult? result;
-  final bool isFavorite;
+  final bool favorite;
   final ValueChanged<FoodGoal> onGoalChanged;
   final ValueChanged<PriceLevel> onPriceChanged;
   final ValueChanged<MealMoment> onMealChanged;
@@ -232,7 +204,7 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 36),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 40),
       children: [
         Row(
           children: [
@@ -240,109 +212,58 @@ class _HomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'decidoo',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -1.8,
-                        ),
-                  ),
-                  Text(
-                    l10n.t('tagline'),
-                    style: const TextStyle(color: Colors.black54),
-                  ),
+                  Text('decidoo', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900)),
+                  Text(l10n.t('tagline'), style: const TextStyle(color: Colors.black54)),
                 ],
               ),
             ),
-            IconButton.filledTonal(
-              tooltip: l10n.t('language'),
-              onPressed: onLanguage,
-              icon: const Icon(Icons.language_rounded),
-            ),
+            IconButton.filledTonal(onPressed: onLanguage, icon: const Icon(Icons.language_rounded)),
           ],
         ),
-        const SizedBox(height: 28),
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF241915), Color(0xFF5D2B1F)],
-            ),
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.t('today'),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.t('heroSubtitle'),
-                style: const TextStyle(color: Colors.white70, fontSize: 15),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        _Selector<FoodGoal>(
-          title: l10n.t('goalTitle'),
-          value: goal,
-          values: FoodGoal.values,
-          label: (value) => _goalLabel(l10n, value),
-          onChanged: onGoalChanged,
-        ),
-        const SizedBox(height: 22),
-        _Selector<PriceLevel>(
-          title: l10n.t('budget'),
-          value: price,
-          values: PriceLevel.values,
-          label: (value) => _priceLabel(l10n, value),
-          onChanged: onPriceChanged,
-        ),
-        const SizedBox(height: 22),
-        _Selector<MealMoment>(
-          title: l10n.t('meal'),
-          value: meal,
-          values: MealMoment.values,
-          label: (value) => _mealLabel(l10n, value),
-          onChanged: onMealChanged,
-        ),
-        const SizedBox(height: 28),
-        FilledButton.icon(
-          onPressed: onDecide,
-          icon: const Icon(Icons.bolt_rounded),
-          label: Text(l10n.t('decide')),
-        ),
+        const SizedBox(height: 24),
+        _Hero(title: l10n.t('today'), subtitle: l10n.t('heroSubtitle')),
+        const SizedBox(height: 24),
+        _Selector<FoodGoal>(title: l10n.t('goalTitle'), value: goal, values: FoodGoal.values, label: (value) => _goalLabel(l10n, value), onChanged: onGoalChanged),
+        const SizedBox(height: 18),
+        _Selector<PriceLevel>(title: l10n.t('budget'), value: price, values: PriceLevel.values, label: (value) => _priceLabel(l10n, value), onChanged: onPriceChanged),
+        const SizedBox(height: 18),
+        _Selector<MealMoment>(title: l10n.t('meal'), value: meal, values: MealMoment.values, label: (value) => _mealLabel(l10n, value), onChanged: onMealChanged),
+        const SizedBox(height: 24),
+        FilledButton.icon(onPressed: onDecide, icon: const Icon(Icons.bolt_rounded), label: Text(l10n.t('decide'))),
         if (result != null) ...[
-          const SizedBox(height: 26),
-          _ResultCard(
-            result: result!,
-            isFavorite: isFavorite,
-            onFavorite: onFavorite,
-            onAgain: onDecide,
-          ),
+          const SizedBox(height: 20),
+          _ResultCard(result: result!, favorite: favorite, onFavorite: onFavorite, onAgain: onDecide),
         ],
       ],
     );
   }
 }
 
-class _Selector<T> extends StatelessWidget {
-  const _Selector({
-    required this.title,
-    required this.value,
-    required this.values,
-    required this.label,
-    required this.onChanged,
-  });
+class _Hero extends StatelessWidget {
+  const _Hero({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
 
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF241915), Color(0xFF5D2B1F)]),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            Text(subtitle, style: const TextStyle(color: Colors.white70)),
+          ],
+        ),
+      );
+}
+
+class _Selector<T> extends StatelessWidget {
+  const _Selector({required this.title, required this.value, required this.values, required this.label, required this.onChanged});
   final String title;
   final T value;
   final List<T> values;
@@ -353,114 +274,43 @@ class _Selector<T> extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 11),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: values
-                .map(
-                  (item) => ChoiceChip(
-                    label: Text(label(item)),
-                    selected: item == value,
-                    onSelected: (_) => onChanged(item),
-                  ),
-                )
-                .toList(),
+            children: values.map((item) => ChoiceChip(label: Text(label(item)), selected: value == item, onSelected: (_) => onChanged(item))).toList(),
           ),
         ],
       );
 }
 
 class _ResultCard extends StatelessWidget {
-  const _ResultCard({
-    required this.result,
-    required this.isFavorite,
-    required this.onFavorite,
-    required this.onAgain,
-  });
-
+  const _ResultCard({required this.result, required this.favorite, required this.onFavorite, required this.onAgain});
   final DecisionResult result;
-  final bool isFavorite;
+  final bool favorite;
   final VoidCallback onFavorite;
   final VoidCallback onAgain;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final food = result.food;
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 24,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(food.emoji, style: const TextStyle(fontSize: 56)),
-              const Spacer(),
-              IconButton.filledTonal(
-                onPressed: onFavorite,
-                icon: Icon(
-                  isFavorite ? Icons.favorite : Icons.favorite_border,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            food.name,
-            style: const TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -.7,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            '${food.cuisine} • ${food.estimatedMinutes} ${l10n.t('minutes')} • '
-            '%${(result.confidence * 100).round()} ${l10n.t('match')}',
-            style: const TextStyle(
-              color: Colors.black54,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(food.description, style: const TextStyle(fontSize: 16, height: 1.4)),
-          const SizedBox(height: 15),
-          ...result.reasons.map(
-            (reason) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(reason)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: onAgain,
-            icon: const Icon(Icons.refresh_rounded),
-            label: Text(l10n.t('again')),
-          ),
-        ],
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [Text(result.food.emoji, style: const TextStyle(fontSize: 48)), const Spacer(), IconButton(onPressed: onFavorite, icon: Icon(favorite ? Icons.favorite : Icons.favorite_border))]),
+            Text(result.food.name, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Text('${result.food.cuisine} • ${result.food.estimatedMinutes} ${l10n.t('minutes')} • %${(result.confidence * 100).round()} ${l10n.t('match')}'),
+            const SizedBox(height: 12),
+            Text(result.food.description),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(onPressed: onAgain, icon: const Icon(Icons.refresh), label: Text(l10n.t('again'))),
+          ],
+        ),
       ),
     );
   }
@@ -468,7 +318,6 @@ class _ResultCard extends StatelessWidget {
 
 class _ExplorePage extends StatelessWidget {
   const _ExplorePage({required this.favorites});
-
   final Set<String> favorites;
 
   @override
@@ -477,38 +326,9 @@ class _ExplorePage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text(
-          l10n.t('explore'),
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
-        ),
-        const SizedBox(height: 6),
-        Text(l10n.t('popular'), style: const TextStyle(color: Colors.black54)),
-        const SizedBox(height: 22),
-        ...foodCatalog.map(
-          (food) => Card(
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 9,
-              ),
-              leading: Text(food.emoji, style: const TextStyle(fontSize: 32)),
-              title: Text(
-                food.name,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text(
-                '${food.cuisine} • ${food.estimatedMinutes} ${l10n.t('minutes')}',
-              ),
-              trailing: Icon(
-                favorites.contains(food.id)
-                    ? Icons.favorite
-                    : Icons.chevron_right_rounded,
-              ),
-            ),
-          ),
-        ),
+        Text(l10n.t('explore'), style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 16),
+        ...foodCatalog.map((food) => Card(child: ListTile(leading: Text(food.emoji, style: const TextStyle(fontSize: 30)), title: Text(food.name), subtitle: Text(food.cuisine), trailing: Icon(favorites.contains(food.id) ? Icons.favorite : Icons.chevron_right)))),
       ],
     );
   }
@@ -516,7 +336,6 @@ class _ExplorePage extends StatelessWidget {
 
 class _HistoryPage extends StatelessWidget {
   const _HistoryPage({required this.history});
-
   final List<DecisionResult> history;
 
   @override
@@ -525,48 +344,9 @@ class _HistoryPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Text(
-          l10n.t('history'),
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
-        ),
-        const SizedBox(height: 20),
-        if (history.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 80),
-            child: Center(
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.history_toggle_off_rounded,
-                    size: 52,
-                    color: Colors.black26,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(l10n.t('emptyHistory')),
-                ],
-              ),
-            ),
-          )
-        else
-          ...history.map(
-            (item) => Card(
-              child: ListTile(
-                leading: Text(
-                  item.food.emoji,
-                  style: const TextStyle(fontSize: 30),
-                ),
-                title: Text(
-                  item.food.name,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                subtitle: Text(
-                  '%${(item.confidence * 100).round()} ${l10n.t('match')}',
-                ),
-              ),
-            ),
-          ),
+        Text(l10n.t('history'), style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900)),
+        const SizedBox(height: 16),
+        if (history.isEmpty) Padding(padding: const EdgeInsets.only(top: 80), child: Center(child: Text(l10n.t('emptyHistory')))) else ...history.map((item) => Card(child: ListTile(leading: Text(item.food.emoji), title: Text(item.food.name), subtitle: Text('%${(item.confidence * 100).round()} ${l10n.t('match')}')))),
       ],
     );
   }
