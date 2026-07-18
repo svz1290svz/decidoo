@@ -22,30 +22,30 @@ class DecisionEngine {
 
     final scored = candidates.map((food) {
       var score = food.popularity * 20;
-      final reasonKeys = <String>[];
+      final reasons = <String>[];
 
       if (food.mealMoments.contains(request.mealMoment)) {
         score += 38;
-        reasonKeys.add('reasonMeal');
+        reasons.add('Strong match for this meal');
       }
       if (food.priceLevel == request.priceLevel) {
         score += 24;
-        reasonKeys.add('reasonBudget');
+        reasons.add('Fits your budget');
       }
       if (request.goal == FoodGoal.surpriseMe ||
           food.goals.contains(request.goal)) {
         score += 28;
-        reasonKeys.add('reasonGoal');
+        reasons.add('Matches what you want right now');
       }
       if (!request.previousFoodIds.contains(food.id)) {
         score += 12;
-        reasonKeys.add('reasonDifferent');
+        reasons.add('Adds variety to recent choices');
       } else {
         score -= 18;
       }
 
       score += _random.nextDouble() * 7;
-      return _ScoredFood(food, score, reasonKeys);
+      return _ScoredFood(food, score, reasons);
     }).toList()
       ..sort((a, b) => b.score.compareTo(a.score));
 
@@ -53,15 +53,15 @@ class DecisionEngine {
     return DecisionResult(
       food: winner.food,
       confidence: (winner.score / 125).clamp(.55, .98).toDouble(),
-      reasons: winner.reasonKeys.take(3).toList(growable: false),
+      reasons: winner.reasons.take(3).toList(growable: false),
     );
   }
 }
 
 class _ScoredFood {
-  const _ScoredFood(this.food, this.score, this.reasonKeys);
+  const _ScoredFood(this.food, this.score, this.reasons);
 
   final Food food;
   final double score;
-  final List<String> reasonKeys;
+  final List<String> reasons;
 }
