@@ -13,7 +13,21 @@ void main() {
 
     test('rejects invalid commission input', () {
       expect(() => service.commissionFor(-1), throwsArgumentError);
+      expect(() => service.commissionFor(double.nan), throwsArgumentError);
+      expect(() => service.commissionFor(double.infinity), throwsArgumentError);
       expect(() => service.commissionFor(10, rate: 1.1), throwsArgumentError);
+      expect(
+        () => service.commissionFor(10, rate: double.nan),
+        throwsArgumentError,
+      );
+    });
+
+    test('money rejects invalid values and currency codes', () {
+      expect(() => Money(-1, 'usd'), throwsArgumentError);
+      expect(() => Money(double.nan, 'usd'), throwsArgumentError);
+      expect(() => Money(double.infinity, 'usd'), throwsArgumentError);
+      expect(() => Money(1, 'dollar'), throwsArgumentError);
+      expect(Money(1, ' USD ').currency, 'usd');
     });
 
     test('premium users never receive sponsored content', () {
@@ -43,32 +57,59 @@ void main() {
       );
     });
 
-    test('chooses highest eligible sponsored bid', () {
-      final result = service.chooseSponsoredPlacement(const [
-        SponsoredPlacement(
-          campaignId: 'a',
-          restaurantId: 'r1',
-          label: 'Sponsored',
-          bid: Money(1, 'usd'),
-          isEligible: true,
-        ),
-        SponsoredPlacement(
-          campaignId: 'b',
-          restaurantId: 'r2',
-          label: 'Sponsored',
-          bid: Money(3, 'usd'),
-          isEligible: true,
-        ),
-        SponsoredPlacement(
-          campaignId: 'c',
-          restaurantId: 'r3',
-          label: 'Sponsored',
-          bid: Money(10, 'usd'),
-          isEligible: false,
-        ),
-      ]);
+    test('chooses highest eligible bid in settlement currency only', () {
+      final result = service.chooseSponsoredPlacement(
+        [
+          SponsoredPlacement(
+            campaignId: 'a',
+            restaurantId: 'r1',
+            label: 'Sponsored',
+            bid: Money(1, 'usd'),
+            isEligible: true,
+          ),
+          SponsoredPlacement(
+            campaignId: 'b',
+            restaurantId: 'r2',
+            label: 'Sponsored',
+            bid: Money(3, 'usd'),
+            isEligible: true,
+          ),
+          SponsoredPlacement(
+            campaignId: 'c',
+            restaurantId: 'r3',
+            label: 'Sponsored',
+            bid: Money(10, 'eur'),
+            isEligible: true,
+          ),
+          SponsoredPlacement(
+            campaignId: 'd',
+            restaurantId: 'r4',
+            label: 'Sponsored',
+            bid: Money(20, 'usd'),
+            isEligible: false,
+          ),
+        ],
+        settlementCurrency: 'USD',
+      );
 
       expect(result?.campaignId, 'b');
+    });
+
+    test('returns null when no eligible campaign uses settlement currency', () {
+      final result = service.chooseSponsoredPlacement(
+        [
+          SponsoredPlacement(
+            campaignId: 'eur-only',
+            restaurantId: 'r1',
+            label: 'Sponsored',
+            bid: Money(5, 'eur'),
+            isEligible: true,
+          ),
+        ],
+        settlementCurrency: 'usd',
+      );
+
+      expect(result, isNull);
     });
   });
 }
