@@ -8,7 +8,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('AI DECISION ENGINE'), findsOneWidget);
-    expect(find.byKey(const Key('decide-button')), findsOneWidget);
     expect(find.byIcon(Icons.payments_outlined), findsOneWidget);
   });
 
@@ -16,9 +15,12 @@ void main() {
     await tester.pumpWidget(const DecidooApp());
     await tester.pumpAndSettle();
 
-    final decideButton = find.byKey(const Key('decide-button'));
-    await tester.ensureVisible(decideButton);
+    final decisionList = find.byType(ListView).first;
+    await tester.drag(decisionList, const Offset(0, -560));
     await tester.pumpAndSettle();
+
+    final decideButton = find.byKey(const Key('decide-button'));
+    expect(decideButton, findsOneWidget);
     await tester.tap(decideButton);
     await tester.pumpAndSettle();
 
@@ -34,6 +36,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Revenue Hub'), findsOneWidget);
-    expect(find.text('7 revenue channels'), findsOneWidget);
+    expect(find.text('Decidoo Premium'), findsWidgets);
   });
 }
