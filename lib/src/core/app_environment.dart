@@ -16,19 +16,34 @@ final class AppConfig {
   final bool enablePayments;
 
   factory AppConfig.fromEnvironment() {
-    const environmentName = String.fromEnvironment(
-      'APP_ENV',
-      defaultValue: 'development',
+    return AppConfig.parse(
+      environmentName: const String.fromEnvironment(
+        'APP_ENV',
+        defaultValue: 'development',
+      ),
+      apiUrl: const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'https://api.decidoo.app',
+      ),
+      enableAnalytics: const bool.fromEnvironment('ENABLE_ANALYTICS'),
+      enableCrashReporting:
+          const bool.fromEnvironment('ENABLE_CRASH_REPORTING'),
+      enablePayments: const bool.fromEnvironment('ENABLE_PAYMENTS'),
     );
-    const apiUrl = String.fromEnvironment(
-      'API_BASE_URL',
-      defaultValue: 'https://api.decidoo.app',
-    );
+  }
 
+  factory AppConfig.parse({
+    required String environmentName,
+    required String apiUrl,
+    bool enableAnalytics = false,
+    bool enableCrashReporting = false,
+    bool enablePayments = false,
+  }) {
     final environment = switch (environmentName) {
-      'production' => AppEnvironment.production,
+      'development' => AppEnvironment.development,
       'staging' => AppEnvironment.staging,
-      _ => AppEnvironment.development,
+      'production' => AppEnvironment.production,
+      _ => throw FormatException('Unsupported APP_ENV: $environmentName'),
     };
 
     final uri = Uri.tryParse(apiUrl);
@@ -42,11 +57,9 @@ final class AppConfig {
     return AppConfig(
       environment: environment,
       apiBaseUrl: uri,
-      enableAnalytics: const bool.fromEnvironment('ENABLE_ANALYTICS'),
-      enableCrashReporting: const bool.fromEnvironment(
-        'ENABLE_CRASH_REPORTING',
-      ),
-      enablePayments: const bool.fromEnvironment('ENABLE_PAYMENTS'),
+      enableAnalytics: enableAnalytics,
+      enableCrashReporting: enableCrashReporting,
+      enablePayments: enablePayments,
     );
   }
 }
