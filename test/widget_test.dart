@@ -16,7 +16,10 @@ void main() {
     await tester.pumpWidget(const DecidooApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('decide-button')));
+    final decideButton = find.byKey(const Key('decide-button'));
+    await tester.ensureVisible(decideButton);
+    await tester.pumpAndSettle();
+    await tester.tap(decideButton);
     await tester.pumpAndSettle();
 
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
