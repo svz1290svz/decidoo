@@ -3,19 +3,19 @@ import '../domain/monetization.dart';
 class MonetizationService {
   const MonetizationService();
 
-  static const consumerPlans = <PricingPlan>[
+  static final consumerPlans = <PricingPlan>[
     PricingPlan(
       id: 'consumer_free',
       title: 'Free',
       price: Money(0, 'usd'),
-      features: ['Core decisions', 'Limited history', 'Sponsored offers'],
+      features: const ['Core decisions', 'Limited history', 'Sponsored offers'],
       channel: RevenueChannel.consumerSubscription,
     ),
     PricingPlan(
       id: 'consumer_premium',
       title: 'Decidoo Premium',
       price: Money(6.99, 'usd'),
-      features: [
+      features: const [
         'Ad-free decisions',
         'Diet and allergy controls',
         'Unlimited history',
@@ -26,26 +26,26 @@ class MonetizationService {
     ),
   ];
 
-  static const restaurantPlans = <PricingPlan>[
+  static final restaurantPlans = <PricingPlan>[
     PricingPlan(
       id: 'restaurant_free',
       title: 'Restaurant Free',
       price: Money(0, 'usd'),
-      features: ['Basic listing', 'Menu profile'],
+      features: const ['Basic listing', 'Menu profile'],
       channel: RevenueChannel.restaurantSubscription,
     ),
     PricingPlan(
       id: 'restaurant_starter',
       title: 'Starter',
       price: Money(19, 'usd'),
-      features: ['Verified listing', 'Basic analytics', 'Campaign tools'],
+      features: const ['Verified listing', 'Basic analytics', 'Campaign tools'],
       channel: RevenueChannel.restaurantSubscription,
     ),
     PricingPlan(
       id: 'restaurant_pro',
       title: 'Pro',
       price: Money(49, 'usd'),
-      features: ['Advanced analytics', 'Priority campaigns', 'Menu insights'],
+      features: const ['Advanced analytics', 'Priority campaigns', 'Menu insights'],
       channel: RevenueChannel.restaurantSubscription,
       recommended: true,
     ),
@@ -53,32 +53,38 @@ class MonetizationService {
       id: 'restaurant_premium',
       title: 'Premium',
       price: Money(99, 'usd'),
-      features: ['Multi-branch tools', 'AI recommendations', 'Attribution'],
+      features: const ['Multi-branch tools', 'AI recommendations', 'Attribution'],
       channel: RevenueChannel.restaurantSubscription,
     ),
     PricingPlan(
       id: 'restaurant_enterprise',
       title: 'Enterprise',
       price: Money(299, 'usd'),
-      features: ['Custom limits', 'Dedicated support', 'API access'],
+      features: const ['Custom limits', 'Dedicated support', 'API access'],
       channel: RevenueChannel.restaurantSubscription,
     ),
   ];
 
   double commissionFor(double grossOrderValue, {double rate = 0.035}) {
-    if (grossOrderValue < 0) {
+    if (!grossOrderValue.isFinite || grossOrderValue < 0) {
       throw ArgumentError.value(grossOrderValue, 'grossOrderValue');
     }
-    if (rate < 0 || rate > 1) {
+    if (!rate.isFinite || rate < 0 || rate > 1) {
       throw ArgumentError.value(rate, 'rate');
     }
     return grossOrderValue * rate;
   }
 
   SponsoredPlacement? chooseSponsoredPlacement(
-    List<SponsoredPlacement> placements,
-  ) {
-    final eligible = placements.where((item) => item.isEligible).toList()
+    List<SponsoredPlacement> placements, {
+    required String settlementCurrency,
+  }) {
+    final currency = settlementCurrency.trim().toLowerCase();
+    final eligible = placements
+        .where(
+          (item) => item.isEligible && item.bid.currency == currency,
+        )
+        .toList()
       ..sort((a, b) => b.bid.amount.compareTo(a.bid.amount));
     return eligible.isEmpty ? null : eligible.first;
   }
