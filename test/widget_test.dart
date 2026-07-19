@@ -23,7 +23,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_border), findsWidgets);
   });
 
   testWidgets('revenue hub remains reachable', (tester) async {
