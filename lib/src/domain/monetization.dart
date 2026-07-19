@@ -13,10 +13,27 @@ enum RevenueChannel {
 }
 
 class Money {
-  const Money(this.amount, this.currency);
+  Money(double amount, String currency)
+      : amount = _validateAmount(amount),
+        currency = _validateCurrency(currency);
 
   final double amount;
   final String currency;
+
+  static double _validateAmount(double value) {
+    if (!value.isFinite || value < 0) {
+      throw ArgumentError.value(value, 'amount', 'Must be finite and non-negative.');
+    }
+    return value;
+  }
+
+  static String _validateCurrency(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (!RegExp(r'^[a-z]{3}$').hasMatch(normalized)) {
+      throw ArgumentError.value(value, 'currency', 'Must be a 3-letter ISO code.');
+    }
+    return normalized;
+  }
 
   String get formatted => '${currency.toUpperCase()} ${amount.toStringAsFixed(2)}';
 }
