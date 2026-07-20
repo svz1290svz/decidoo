@@ -1,0 +1,326 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  RESTAURANT_OWNER
+  RESTAURANT_STAFF
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum RestaurantStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum BoostStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum RecommendationAction {
+  VIEWED
+  LIKED
+  DISLIKED
+  SAVED
+  RESTAURANT_OPENED
+  NAVIGATION_STARTED
+  ORDER_CLICKED
+}
+
+model User {
+  id                String        @id @default(cuid())
+  email             String?       @unique
+  phone             String?       @unique
+  passwordHash      String?
+  displayName       String?
+  role              UserRole      @default(USER)
+  status            AccountStatus @default(ACTIVE)
+  preferredLanguage String        @default("tr")
+  currency          String        @default("TRY")
+  timezone          String        @default("Europe/Istanbul")
+  onboardingDone    Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  preference         UserPreference?
+  memberships        RestaurantMember[]
+  refreshTokens      RefreshToken[]
+  favorites          Favorite[]
+  sessions           RecommendationSession[]
+  recommendationLogs RecommendationLog[]
+
+  @@index([role, status])
+}
+
+model UserPreference {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  minBudget             Decimal? @db.Decimal(10, 2)
+  maxBudget             Decimal? @db.Decimal(10, 2)
+  maxDistanceKm         Decimal? @db.Decimal(6, 2)
+  vegetarian            Boolean  @default(false)
+  vegan                 Boolean  @default(false)
+  halalOnly             Boolean  @default(false)
+  glutenFree            Boolean  @default(false)
+  lactoseFree           Boolean  @default(false)
+  dislikedIngredients   String[]
+  favoriteCuisines      String[]
+  preferredMealTypes    String[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Restaurant {
+  id             String           @id @default(cuid())
+  name           String
+  slug           String           @unique
+  description    String?
+  logoUrl        String?
+  coverUrl       String?
+  phone          String?
+  email          String?
+  status         RestaurantStatus @default(DRAFT)
+  currency       String           @default("TRY")
+  addressLine    String
+  district       String?
+  city           String
+  countryCode    String           @default("TR")
+  latitude       Decimal          @db.Decimal(10, 7)
+  longitude      Decimal          @db.Decimal(10, 7)
+  averageRating  Decimal          @default(0) @db.Decimal(3, 2)
+  reviewCount    Int              @default(0)
+  isVerified     Boolean          @default(false)
+  isOpen         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  members            RestaurantMember[]
+  categories         MenuCategory[]
+  meals              Meal[]
+  favorites          Favorite[]
+  recommendationLogs RecommendationLog[]
+  boosts             RestaurantBoost[]
+  payments           PaymentTransaction[]
+
+  @@index([status, city])
+  @@index([latitude, longitude])
+}
+
+model RestaurantMember {
+  id           String   @id @default(cuid())
+  userId       String
+  restaurantId String
+  permissions  String[]
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, restaurantId])
+}
+
+model MenuCategory {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  meals      Meal[]
+
+  @@index([restaurantId, sortOrder])
+}
+
+model Meal {
+  id             String   @id @default(cuid())
+  restaurantId   String
+  categoryId     String?
+  name           String
+  description    String?
+  imageUrl       String?
+  price          Decimal  @db.Decimal(10, 2)
+  currency       String   @default("TRY")
+  cuisine        String?
+  mealType       String?
+  ingredients    String[]
+  allergens      String[]
+  tags           String[]
+  calories       Int?
+  preparationMin Int?
+  isVegetarian   Boolean  @default(false)
+  isVegan        Boolean  @default(false)
+  isGlutenFree   Boolean  @default(false)
+  isHalal        Boolean  @default(false)
+  isAvailable    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant         Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category           MenuCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  favorites          Favorite[]
+  recommendationLogs RecommendationLog[]
+
+  @@index([restaurantId, isAvailable])
+  @@index([cuisine, mealType])
+  @@index([price])
+}
+
+model RecommendationSession {
+  id             String   @id @default(cuid())
+  userId         String?
+  latitude       Decimal? @db.Decimal(10, 7)
+  longitude      Decimal? @db.Decimal(10, 7)
+  budget         Decimal? @db.Decimal(10, 2)
+  maxDistanceKm  Decimal? @db.Decimal(6, 2)
+  hungerLevel    Int?
+  mood           String?
+  mealType       String?
+  weatherContext Json?
+  requestContext Json?
+  createdAt      DateTime @default(now())
+
+  user    User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  results RecommendationLog[]
+
+  @@index([userId, createdAt])
+}
+
+model RecommendationLog {
+  id               String                @id @default(cuid())
+  sessionId        String
+  userId           String?
+  restaurantId     String
+  mealId           String?
+  score            Decimal               @db.Decimal(10, 6)
+  rank             Int
+  reasonCodes      String[]
+  explanation      String?
+  action           RecommendationAction?
+  actionAt         DateTime?
+  algorithmVersion String
+  isSponsored      Boolean               @default(false)
+  boostId          String?
+  createdAt        DateTime              @default(now())
+
+  session    RecommendationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user       User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  restaurant Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  meal       Meal?                 @relation(fields: [mealId], references: [id], onDelete: SetNull)
+  boost      RestaurantBoost?      @relation(fields: [boostId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, rank])
+  @@index([restaurantId, createdAt])
+}
+
+model Favorite {
+  id           String   @id @default(cuid())
+  userId       String
+  restaurantId String?
+  mealId       String?
+  createdAt    DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  meal       Meal?       @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, restaurantId, mealId])
+}
+
+model BoostPackage {
+  id                   String   @id @default(cuid())
+  name                 String
+  durationDays         Int
+  price                Decimal  @db.Decimal(10, 2)
+  currency             String   @default("TRY")
+  recommendationWeight Decimal  @default(1) @db.Decimal(6, 3)
+  isActive             Boolean  @default(true)
+
+  boosts RestaurantBoost[]
+}
+
+model RestaurantBoost {
+  id             String      @id @default(cuid())
+  restaurantId   String
+  packageId      String
+  status         BoostStatus @default(PENDING)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  targetCity     String?
+  targetDistrict String?
+  impressions    Int         @default(0)
+  clicks         Int         @default(0)
+  conversions    Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  restaurant         Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  package            BoostPackage        @relation(fields: [packageId], references: [id])
+  recommendationLogs RecommendationLog[]
+  payment            PaymentTransaction?
+
+  @@index([restaurantId, status])
+  @@index([startsAt, endsAt])
+}
+
+model PaymentTransaction {
+  id                String        @id @default(cuid())
+  restaurantId      String
+  boostId           String?       @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("TRY")
+  status            PaymentStatus @default(PENDING)
+  provider          String
+  externalPaymentId String?
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  restaurant Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  boost      RestaurantBoost? @relation(fields: [boostId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, status])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
