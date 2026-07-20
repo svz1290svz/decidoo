@@ -22,14 +22,14 @@ export const hashToken = (token: string): string => createHash('sha256').update(
 export const signAccessToken = (userId: string, role: string): string =>
   jwt.sign({ role, type: 'access' }, env.JWT_ACCESS_SECRET, {
     subject: userId,
-    expiresIn: `${env.ACCESS_TOKEN_TTL_MINUTES}m`,
+    expiresIn: env.ACCESS_TOKEN_TTL_MINUTES * 60,
   });
 
 export const signRefreshToken = (userId: string): string =>
   jwt.sign({ type: 'refresh' }, env.JWT_REFRESH_SECRET, {
     subject: userId,
     jwtid: randomUUID(),
-    expiresIn: `${env.REFRESH_TOKEN_TTL_DAYS}d`,
+    expiresIn: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60,
   });
 
 export const verifyAccessToken = (token: string): AccessClaims => {
