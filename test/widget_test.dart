@@ -1,41 +1,53 @@
-import 'package:decidoo/src/app.dart';
+import 'package:decidoo/src/complete_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+Future<void> enterApp(WidgetTester tester) async {
+  await tester.pumpWidget(const CompleteDecidooApp());
+  await tester.pumpAndSettle();
+  for (var i = 0; i < 3; i++) {
+    await tester.tap(find.text(i == 2 ? 'GET STARTED' : 'CONTINUE'));
+    await tester.pumpAndSettle();
+  }
+  await tester.tap(find.text('Continue as guest'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('premium Decidoo shell opens and exposes core navigation', (tester) async {
-    await tester.pumpWidget(const DecidooApp());
+  testWidgets('onboarding transitions into login', (tester) async {
+    await tester.pumpWidget(const CompleteDecidooApp());
     await tester.pumpAndSettle();
-
-    expect(find.text('AI DECISION ENGINE'), findsOneWidget);
-    expect(find.byIcon(Icons.payments_outlined), findsOneWidget);
+    expect(find.text('Stop overthinking.'), findsOneWidget);
+    await tester.tap(find.text('CONTINUE'));
+    await tester.pumpAndSettle();
+    expect(find.text('Made for you.'), findsOneWidget);
   });
 
-  testWidgets('decision flow renders an animated recommendation', (tester) async {
-    await tester.pumpWidget(const DecidooApp());
-    await tester.pumpAndSettle();
+  testWidgets('main app exposes five complete destinations', (tester) async {
+    await enterApp(tester);
+    expect(find.text('Decide'), findsOneWidget);
+    expect(find.text('Explore'), findsOneWidget);
+    expect(find.text('Saved'), findsOneWidget);
+    expect(find.text('History'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+  });
 
-    final decisionList = find.byType(ListView).first;
-    await tester.drag(decisionList, const Offset(0, -560));
+  testWidgets('decision flow creates a recommendation', (tester) async {
+    await enterApp(tester);
+    final button = find.byKey(const Key('complete-decide-button'));
+    await tester.ensureVisible(button);
+    await tester.tap(button);
     await tester.pumpAndSettle();
-
-    final decideButton = find.byKey(const Key('decide-button'));
-    expect(decideButton, findsOneWidget);
-    await tester.tap(decideButton);
-    await tester.pumpAndSettle();
-
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    expect(find.byIcon(Icons.favorite_border), findsWidgets);
+    expect(find.textContaining('personal match'), findsOneWidget);
   });
 
-  testWidgets('revenue hub remains reachable', (tester) async {
-    await tester.pumpWidget(const DecidooApp());
+  testWidgets('profile contains settings and premium entry', (tester) async {
+    await enterApp(tester);
+    await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.payments_outlined));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Revenue Hub'), findsOneWidget);
-    expect(find.text('Decidoo Premium'), findsWidgets);
+    expect(find.text('Unlock Decidoo Premium'), findsOneWidget);
+    expect(find.text('Preferences'), findsOneWidget);
+    expect(find.text('Privacy & data'), findsOneWidget);
   });
 }
