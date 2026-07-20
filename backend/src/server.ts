@@ -1,41 +1,61 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
-import { z } from 'zod';
+import { registerAuthRoutes } from './auth-routes.js';
+import { env } from './config.js';
+import { prisma } from './db.js';
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(8080),
-  HOST: z.string().default('0.0.0.0'),
-  DATABASE_URL: z.string().min(1),
-  JWT_ACCESS_SECRET: z.string().min(32),
-  JWT_REFRESH_SECRET: z.string().min(32),
-});
-
-const env = envSchema.parse(process.env);
 const app = Fastify({
   logger: {
     level: env.NODE_ENV === 'production' ? 'info' : 'debug',
   },
 });
 
-app.get('/health', async () => ({
-  status: 'ok',
-  service: 'decidoo-api',
-  environment: env.NODE_ENV,
-  timestamp: new Date().toISOString(),
-}));
+app.get('/health', async (_request, reply) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return {
+      status: 'ok',
+      service: 'decidoo-api',
+      database: 'connected',
+      environment: env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    app.log.error(error);
+    return reply.code(503).send({
+      status: 'degraded',
+      service: 'decidoo-api',
+      database: 'unavailable',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 app.get('/v1', async () => ({
   name: 'Decidoo API',
-  version: '0.1.0',
+  version: '0.2.0',
   principle: 'Trust first. Sponsored recommendations are always disclosed.',
 }));
 
+await app.register(registerAuthRoutes);
+
+const shutdown = async (signal: string): Promise<void> => {
+  app.log.info({ signal }, 'Shutting down');
+  await app.close();
+  await prisma.$disconnect();
+  process.exit(0);
+};
+
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+
 const start = async (): Promise<void> => {
   try {
+    await prisma.$connect();
     await app.listen({ port: env.PORT, host: env.HOST });
   } catch (error) {
     app.log.error(error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 };
