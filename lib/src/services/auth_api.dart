@@ -95,6 +95,14 @@ class AuthApi {
     return AuthSession.fromJson(response);
   }
 
+  Future<void> requestPasswordReset(String email) async {
+    await _post(
+      '/v1/auth/password-reset/request',
+      body: {'email': email},
+      allowEmpty: true,
+    );
+  }
+
   Future<AuthSession> refresh(String refreshToken) async {
     final response = await _post(
       '/v1/auth/refresh',
