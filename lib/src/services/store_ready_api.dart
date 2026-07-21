@@ -95,8 +95,12 @@ class StoreReadyApi {
               restaurantId: mutation.payload['restaurantId']?.toString(),
               mealId: mutation.payload['mealId']?.toString(),
             );
+            break;
           case 'favorite.remove':
-            await appApi.removeFavorite(mutation.payload['favoriteId'].toString());
+            await appApi.removeFavorite(
+              mutation.payload['favoriteId'].toString(),
+            );
+            break;
           case 'preferences.update':
             final server = await appApi.preferences();
             final serverUpdatedAt = DateTime.tryParse(
@@ -109,6 +113,7 @@ class StoreReadyApi {
               // Explicit last-write-wins policy: queued user edit wins.
             }
             await appApi.updatePreferences(mutation.payload);
+            break;
           default:
             continue;
         }
@@ -141,7 +146,9 @@ class StoreReadyApi {
       request.headers.set(HttpHeaders.acceptHeader, ContentType.json.mimeType);
       final response = await request.close().timeout(_timeout);
       final raw = await response.transform(utf8.decoder).join().timeout(_timeout);
-      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final data = raw.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(raw) as Map<String, dynamic>;
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw AppApiException(
           (data['error'] ?? 'REQUEST_FAILED').toString(),
