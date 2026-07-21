@@ -54,6 +54,40 @@ enum RecommendationAction {
   ORDER_CLICKED
 }
 
+enum ConsentType {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  PERSONALIZATION
+  MARKETING_EMAIL
+  MARKETING_PUSH
+  LOCATION_PROCESSING
+}
+
+enum DataRequestType {
+  ACCESS
+  EXPORT
+  RECTIFICATION
+  DELETION
+  RESTRICTION
+  OBJECTION
+}
+
+enum DataRequestStatus {
+  PENDING
+  IN_REVIEW
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum MediaOwnerType {
+  USER
+  RESTAURANT
+  MEAL
+  MENU_CATEGORY
+  CAMPAIGN
+}
+
 model User {
   id                String        @id @default(cuid())
   email             String?       @unique
@@ -75,6 +109,8 @@ model User {
   favorites          Favorite[]
   sessions           RecommendationSession[]
   recommendationLogs RecommendationLog[]
+  consentLogs        ConsentLog[]
+  dataRequests       DataRequest[]
 
   @@index([role, status])
 }
@@ -323,4 +359,45 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+model ConsentLog {
+  id        String      @id @default(cuid())
+  userId    String
+  type      ConsentType
+  granted   Boolean
+  version   String
+  ipAddress String?
+  createdAt DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([createdAt])
+}
+
+model DataRequest {
+  id          String            @id @default(cuid())
+  userId      String
+  type        DataRequestType
+  status      DataRequestStatus @default(PENDING)
+  requestedAt DateTime          @default(now())
+  completedAt DateTime?
+  note        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, requestedAt])
+  @@index([status, requestedAt])
+}
+
+model Media {
+  id        String         @id @default(cuid())
+  ownerType MediaOwnerType
+  ownerId   String
+  url       String
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  @@index([ownerType, ownerId, sortOrder])
 }
