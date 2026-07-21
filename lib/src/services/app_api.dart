@@ -1,11 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import '../auth/auth_session_controller.dart';
 
 class AppApiException implements Exception {
-  const AppApiException(this.code);
+  const AppApiException(this.code, {this.statusCode});
+
   final String code;
+  final int? statusCode;
+
+  @override
+  String toString() => code;
 }
 
 class AppApi {
@@ -15,6 +21,7 @@ class AppApi {
     'API_BASE_URL',
     defaultValue: 'http://10.0.2.2:3000',
   );
+  static const _requestTimeout = Duration(seconds: 15);
 
   final AuthSessionController controller;
   final HttpClient _client;
@@ -27,20 +34,63 @@ class AppApi {
     final token = controller.session?.accessToken;
     if (token == null) throw const AppApiException('AUTH_REQUIRED');
 
-    final request = await _client.openUrl(method, Uri.parse('$baseUrl$path'));
-    request.headers.contentType = ContentType.json;
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-    if (body != null) request.write(jsonEncode(body));
+    final maxAttempts = method == 'GET' ? 2 : 1;
+    Object? lastError;
 
-    final response = await request.close();
-    final raw = await response.transform(utf8.decoder).join();
-    final payload = raw.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(raw) as Map<String, dynamic>;
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw AppApiException((payload['error'] ?? 'REQUEST_FAILED').toString());
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final request = await _client
+            .openUrl(method, Uri.parse('$baseUrl$path'))
+            .timeout(_requestTimeout);
+        request.headers.contentType = ContentType.json;
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+        request.headers.set(HttpHeaders.acceptHeader, ContentType.json.mimeType);
+        if (body != null) request.write(jsonEncode(body));
+
+        final response = await request.close().timeout(_requestTimeout);
+        final raw = await response
+            .transform(utf8.decoder)
+            .join()
+            .timeout(_requestTimeout);
+        final payload = _decodePayload(raw);
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw AppApiException(
+            (payload['error'] ?? 'REQUEST_FAILED').toString(),
+            statusCode: response.statusCode,
+          );
+        }
+        return payload;
+      } on AppApiException {
+        rethrow;
+      } on TimeoutException catch (error) {
+        lastError = error;
+      } on SocketException catch (error) {
+        lastError = error;
+      } on HttpException catch (error) {
+        lastError = error;
+      } on FormatException {
+        throw const AppApiException('INVALID_SERVER_RESPONSE');
+      }
+
+      if (attempt < maxAttempts) {
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+      }
     }
-    return payload;
+
+    if (lastError is TimeoutException) {
+      throw const AppApiException('REQUEST_TIMEOUT');
+    }
+    throw const AppApiException('SERVICE_UNAVAILABLE');
+  }
+
+  Map<String, dynamic> _decodePayload(String raw) {
+    if (raw.isEmpty) return <String, dynamic>{};
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Expected a JSON object');
+    }
+    return decoded;
   }
 
   Future<List<Map<String, dynamic>>> restaurants({String? query}) async {
