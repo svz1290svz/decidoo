@@ -110,12 +110,18 @@ export const registerRestaurantRoutes = async (app: FastifyInstance): Promise<vo
 
     if (!restaurant) return reply.code(404).send({ error: 'RESTAURANT_NOT_FOUND' });
 
+    const operatingHours = await prisma.restaurantOperatingHour.findMany({
+      where: { restaurantId: restaurant.id },
+      orderBy: { dayOfWeek: 'asc' },
+    });
+
     return {
       restaurant: {
         ...restaurant,
         latitude: Number(restaurant.latitude),
         longitude: Number(restaurant.longitude),
         averageRating: Number(restaurant.averageRating),
+        operatingHours,
         categories: restaurant.categories.map((category) => ({
           ...category,
           meals: category.meals.map((meal) => ({ ...meal, price: Number(meal.price) })),
