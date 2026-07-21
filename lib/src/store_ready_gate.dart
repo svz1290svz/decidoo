@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'auth/auth_gate.dart';
 import 'auth/auth_session_controller.dart';
+import 'auth/demo_enabled_auth_gate.dart';
 import 'localized_store_ready_production_app.dart';
 import 'management_app.dart';
 
@@ -34,7 +34,7 @@ class _StoreReadyGateState extends State<StoreReadyGate> {
   @override
   Widget build(BuildContext context) {
     if (!widget.controller.isAuthenticated) {
-      return AuthGate(controller: widget.controller);
+      return DemoEnabledAuthGate(controller: widget.controller);
     }
 
     final role = widget.controller.session?.user.role ?? 'USER';
