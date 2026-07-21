@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../auth/auth_session_controller.dart';
 
@@ -65,6 +66,10 @@ class FirebasePushService {
     }
   }
 
+  void dismissForegroundMessage() {
+    foregroundMessage.value = null;
+  }
+
   void _onSessionChanged() {
     if (controller.isAuthenticated) {
       unawaited(syncCurrentToken());
@@ -114,5 +119,92 @@ class FirebasePushService {
     await _tokenSubscription?.cancel();
     foregroundMessage.dispose();
     _client.close(force: true);
+  }
+}
+
+class PushNotificationHost extends StatefulWidget {
+  const PushNotificationHost({
+    super.key,
+    required this.service,
+    required this.child,
+  });
+
+  final FirebasePushService service;
+  final Widget child;
+
+  @override
+  State<PushNotificationHost> createState() => _PushNotificationHostState();
+}
+
+class _PushNotificationHostState extends State<PushNotificationHost> {
+  Timer? _dismissTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.service.foregroundMessage.addListener(_scheduleDismiss);
+  }
+
+  void _scheduleDismiss() {
+    _dismissTimer?.cancel();
+    if (widget.service.foregroundMessage.value != null) {
+      _dismissTimer = Timer(const Duration(seconds: 6), () {
+        widget.service.dismissForegroundMessage();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    widget.service.foregroundMessage.removeListener(_scheduleDismiss);
+    unawaited(widget.service.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          widget.child,
+          ValueListenableBuilder<RemoteMessage?>(
+            valueListenable: widget.service.foregroundMessage,
+            builder: (context, message, _) {
+              if (message == null) return const SizedBox.shrink();
+              final title = message.notification?.title ??
+                  message.data['title']?.toString() ??
+                  'Decidoo';
+              final body = message.notification?.body ??
+                  message.data['body']?.toString() ??
+                  '';
+              return Positioned(
+                top: MediaQuery.paddingOf(context).top + 12,
+                left: 16,
+                right: 16,
+                child: Material(
+                  elevation: 12,
+                  color: const Color(0xFF171B31),
+                  borderRadius: BorderRadius.circular(18),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFFF6B35),
+                      child: Icon(Icons.notifications_active, color: Colors.white),
+                    ),
+                    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: body.isEmpty ? null : Text(body),
+                    trailing: IconButton(
+                      onPressed: widget.service.dismissForegroundMessage,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
