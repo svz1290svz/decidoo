@@ -39,6 +39,21 @@ const mealSchema = z.object({
   isAvailable: z.boolean().default(true),
 });
 const mealUpdateSchema = mealSchema.partial();
+const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+const operatingHourSchema = z.object({
+  dayOfWeek: z.coerce.number().int().min(0).max(6),
+  isClosed: z.boolean().default(false),
+  opensAt: z.string().regex(timePattern).nullable().optional(),
+  closesAt: z.string().regex(timePattern).nullable().optional(),
+}).superRefine((value, context) => {
+  if (!value.isClosed && (!value.opensAt || !value.closesAt)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Opening and closing times are required.' });
+  }
+  if (!value.isClosed && value.opensAt && value.closesAt && value.opensAt === value.closesAt) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Opening and closing times must differ.' });
+  }
+});
+const operatingHoursSchema = z.object({ hours: z.array(operatingHourSchema).min(1).max(7) });
 
 const userIdFromRequest = (request: FastifyRequest): string => {
   const header = request.headers.authorization;
@@ -62,7 +77,17 @@ export const registerOwnerRoutes = async (app: FastifyInstance): Promise<void> =
         where: { userId },
         include: { restaurant: { include: { categories: true, meals: true } } },
       });
-      return { restaurants: memberships.map((item) => item.restaurant) };
+      const restaurantIds = memberships.map((item) => item.restaurantId);
+      const hours = await prisma.restaurantOperatingHour.findMany({
+        where: { restaurantId: { in: restaurantIds } },
+        orderBy: [{ restaurantId: 'asc' }, { dayOfWeek: 'asc' }],
+      });
+      return {
+        restaurants: memberships.map((item) => ({
+          ...item.restaurant,
+          operatingHours: hours.filter((hour) => hour.restaurantId === item.restaurantId),
+        })),
+      };
     } catch {
       return reply.code(401).send({ error: 'AUTH_REQUIRED' });
     }
@@ -101,6 +126,42 @@ export const registerOwnerRoutes = async (app: FastifyInstance): Promise<void> =
       if (!parsed.success) return reply.code(400).send({ error: 'INVALID_INPUT', details: parsed.error.flatten() });
       const restaurant = await prisma.restaurant.update({ where: { id: request.params.id }, data: parsed.data });
       return { restaurant };
+    } catch {
+      return reply.code(401).send({ error: 'AUTH_REQUIRED' });
+    }
+  });
+
+  app.put<{ Params: { id: string } }>('/v1/owner/restaurants/:id/operating-hours', async (request, reply) => {
+    try {
+      const userId = userIdFromRequest(request);
+      if (!(await ownsRestaurant(userId, request.params.id))) return reply.code(403).send({ error: 'FORBIDDEN' });
+      const parsed = operatingHoursSchema.safeParse(request.body);
+      if (!parsed.success) return reply.code(400).send({ error: 'INVALID_INPUT', details: parsed.error.flatten() });
+      const uniqueDays = new Set(parsed.data.hours.map((hour) => hour.dayOfWeek));
+      if (uniqueDays.size !== parsed.data.hours.length) return reply.code(400).send({ error: 'DUPLICATE_DAY' });
+
+      await prisma.$transaction(
+        parsed.data.hours.map((hour) => prisma.restaurantOperatingHour.upsert({
+          where: { restaurantId_dayOfWeek: { restaurantId: request.params.id, dayOfWeek: hour.dayOfWeek } },
+          create: {
+            restaurantId: request.params.id,
+            dayOfWeek: hour.dayOfWeek,
+            isClosed: hour.isClosed,
+            opensAt: hour.isClosed ? null : hour.opensAt,
+            closesAt: hour.isClosed ? null : hour.closesAt,
+          },
+          update: {
+            isClosed: hour.isClosed,
+            opensAt: hour.isClosed ? null : hour.opensAt,
+            closesAt: hour.isClosed ? null : hour.closesAt,
+          },
+        })),
+      );
+      const hours = await prisma.restaurantOperatingHour.findMany({
+        where: { restaurantId: request.params.id },
+        orderBy: { dayOfWeek: 'asc' },
+      });
+      return { hours };
     } catch {
       return reply.code(401).send({ error: 'AUTH_REQUIRED' });
     }
