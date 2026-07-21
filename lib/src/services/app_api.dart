@@ -13,7 +13,7 @@ class AppApi {
 
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080',
+    defaultValue: 'http://10.0.2.2:3000',
   );
 
   final AuthSessionController controller;
@@ -46,8 +46,7 @@ class AppApi {
         ? ''
         : '?q=${Uri.encodeQueryComponent(query.trim())}';
     final data = await _request('GET', '/v1/restaurants$suffix');
-    return (data['restaurants'] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
+    return (data['restaurants'] as List? ?? const []).cast<Map<String, dynamic>>();
   }
 
   Future<List<Map<String, dynamic>>> recommendations({double? maxBudget}) async {
