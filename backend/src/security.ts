@@ -62,18 +62,4 @@ export const registerSecurity = async (app: FastifyInstance): Promise<void> => {
       }
     }
   });
-
-  app.setErrorHandler((error, request, reply) => {
-    request.log.error({ err: error, requestId: request.id }, 'Unhandled request error');
-
-    const statusCode = error.statusCode && error.statusCode >= 400
-      ? error.statusCode
-      : 500;
-    const publicCode = statusCode >= 500 ? 'INTERNAL_ERROR' : 'REQUEST_FAILED';
-
-    return reply.code(statusCode).send({
-      error: publicCode,
-      requestId: request.id,
-    });
-  });
 };
