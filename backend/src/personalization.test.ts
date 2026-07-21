@@ -23,15 +23,19 @@ const preference = {
   updatedAt: new Date(),
 };
 
+const positiveSignal = {
+  meal: {
+    cuisine: 'Turkish',
+    mealType: 'Dinner',
+    tags: ['grill'],
+  },
+};
+
 test('explicit and learned preferences increase score', () => {
   const profile = buildPersonalizationProfile(preference, [
-    {
-      meal: {
-        cuisine: 'Turkish',
-        mealType: 'Dinner',
-        tags: ['grill'],
-      },
-    },
+    positiveSignal,
+    positiveSignal,
+    positiveSignal,
   ]);
 
   const result = personalizationScore(
