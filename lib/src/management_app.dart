@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'auth/auth_session_controller.dart';
 import 'services/app_api.dart';
 import 'services/management_api.dart';
+import 'widgets/operating_hours_editor.dart';
 
 class ManagementApp extends StatefulWidget {
   const ManagementApp({
@@ -316,7 +317,7 @@ class _OwnerPanelState extends State<_OwnerPanel> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(labelText: 'Fiyat ($currency)'),
                 ),
-                TextField(controller: imageUrl, decoration: const InputDecoration(labelText: 'Fotoğraf URL')), 
+                TextField(controller: imageUrl, decoration: const InputDecoration(labelText: 'Fotoğraf URL')),
                 if (categories.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: categoryId,
@@ -360,6 +361,21 @@ class _OwnerPanelState extends State<_OwnerPanel> {
     if (saved == true && mounted) _reload();
   }
 
+  Future<void> _showOperatingHours(
+    String restaurantId,
+    List<Map<String, dynamic>> initialHours,
+  ) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => OperatingHoursEditor(
+        api: widget.api,
+        restaurantId: restaurantId,
+        initialHours: initialHours,
+      ),
+    );
+    if (saved == true && mounted) _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -391,6 +407,9 @@ class _OwnerPanelState extends State<_OwnerPanel> {
                       .cast<Map<String, dynamic>>();
                   final meals = (restaurant['meals'] as List? ?? const [])
                       .cast<Map<String, dynamic>>();
+                  final operatingHours =
+                      (restaurant['operatingHours'] as List? ?? const [])
+                          .cast<Map<String, dynamic>>();
                   return Card(
                     margin: const EdgeInsets.only(bottom: 16),
                     child: ExpansionTile(
@@ -411,6 +430,11 @@ class _OwnerPanelState extends State<_OwnerPanel> {
                               onPressed: () => _showMealDialog(id, categories, currency),
                               icon: const Icon(Icons.add),
                               label: const Text('Yemek ekle'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => _showOperatingHours(id, operatingHours),
+                              icon: const Icon(Icons.schedule_outlined),
+                              label: const Text('Çalışma saatleri'),
                             ),
                             if (status == 'DRAFT' || status == 'REJECTED')
                               TextButton(
