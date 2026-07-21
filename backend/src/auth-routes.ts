@@ -145,27 +145,22 @@ export const registerAuthRoutes = async (app: FastifyInstance): Promise<void> =>
     if (!user || user.status !== 'ACTIVE') return reply.code(202).send({ accepted: true });
 
     const token = randomBytes(32).toString('base64url');
+    const tokenHash = resetTokenHash(token);
     const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000);
-    await prisma.$transaction([
-      prisma.refreshToken.updateMany({
-        where: {
-          userId: user.id,
-          tokenHash: { startsWith: hashToken(RESET_TOKEN_PREFIX).slice(0, 0) },
-          revokedAt: null,
-        },
-        data: { revokedAt: new Date() },
-      }),
-      prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          tokenHash: resetTokenHash(token),
-          expiresAt,
-        },
-      }),
-    ]);
+    await prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    });
 
     const delivered = await deliverPasswordReset(parsed.data.email, token);
     if (!delivered) {
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
       app.log.error({ email: parsed.data.email }, 'Password reset delivery provider is not configured');
       return reply.code(503).send({ error: 'DELIVERY_UNAVAILABLE' });
     }
