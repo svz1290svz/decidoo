@@ -3,9 +3,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import 'src/auth/auth_gate.dart';
 import 'src/auth/auth_session_controller.dart';
 import 'src/observability/error_reporter.dart';
+import 'src/services/firebase_push_service.dart';
+import 'src/store_ready_gate.dart';
 
 void main() {
   final reporter = ErrorReporter();
@@ -40,7 +41,15 @@ void main() {
     final sessionController = AuthSessionController();
     await sessionController.restore();
 
-    runApp(AuthGate(controller: sessionController));
+    final pushService = FirebasePushService(sessionController);
+    await pushService.initialize();
+
+    runApp(
+      PushNotificationHost(
+        service: pushService,
+        child: StoreReadyGate(controller: sessionController),
+      ),
+    );
   }, (error, stackTrace) {
     unawaited(
       reporter.record(

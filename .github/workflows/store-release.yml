@@ -116,12 +116,21 @@ jobs:
           echo "BUILD_NUMBER=${VERSION_LINE##*+}" >> "$GITHUB_ENV"
           echo "API_BASE_URL=${PRODUCTION_API_BASE_URL:-https://api.decidoo.invalid}" >> "$GITHUB_ENV"
       - name: Build iOS release without signing
-        run: >-
-          flutter build ios --release --no-codesign
-          --build-name="$BUILD_NAME"
-          --build-number="$BUILD_NUMBER"
-          --dart-define=API_BASE_URL="$API_BASE_URL"
-          --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL"
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign \
+            --build-name="$BUILD_NAME" \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL" \
+            2>&1 | tee ios-build.log
+      - name: Upload iOS build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-diagnostics
+          path: ios-build.log
+          retention-days: 7
       - name: Archive unsigned app bundle
         run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app decidoo-ios-unsigned.zip
       - uses: actions/upload-artifact@v4

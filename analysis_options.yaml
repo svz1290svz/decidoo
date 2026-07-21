@@ -5,3 +5,4 @@ linter:
     prefer_const_constructors: false
     use_full_hex_values_for_flutter_colors: false
     use_super_parameters: true
+    curly_braces_in_flow_control_structures: false
