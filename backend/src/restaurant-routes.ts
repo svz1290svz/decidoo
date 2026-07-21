@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { Prisma, RestaurantStatus } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from './db.js';
 
@@ -18,15 +19,15 @@ export const registerRestaurantRoutes = async (app: FastifyInstance): Promise<vo
     }
 
     const { city, cuisine, q, limit, offset } = parsed.data;
-    const where = {
-      status: 'ACTIVE' as const,
-      ...(city ? { city: { equals: city, mode: 'insensitive' as const } } : {}),
+    const where: Prisma.RestaurantWhereInput = {
+      status: RestaurantStatus.ACTIVE,
+      ...(city ? { city: { equals: city, mode: Prisma.QueryMode.insensitive } } : {}),
       ...(q
         ? {
             OR: [
-              { name: { contains: q, mode: 'insensitive' as const } },
-              { description: { contains: q, mode: 'insensitive' as const } },
-              { city: { contains: q, mode: 'insensitive' as const } },
+              { name: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { description: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { city: { contains: q, mode: Prisma.QueryMode.insensitive } },
             ],
           }
         : {}),
@@ -34,7 +35,7 @@ export const registerRestaurantRoutes = async (app: FastifyInstance): Promise<vo
         ? {
             meals: {
               some: {
-                cuisine: { equals: cuisine, mode: 'insensitive' as const },
+                cuisine: { equals: cuisine, mode: Prisma.QueryMode.insensitive },
                 isAvailable: true,
               },
             },
@@ -92,7 +93,7 @@ export const registerRestaurantRoutes = async (app: FastifyInstance): Promise<vo
 
   app.get<{ Params: { slug: string } }>('/v1/restaurants/:slug', async (request, reply) => {
     const restaurant = await prisma.restaurant.findFirst({
-      where: { slug: request.params.slug, status: 'ACTIVE' },
+      where: { slug: request.params.slug, status: RestaurantStatus.ACTIVE },
       include: {
         categories: {
           where: { isActive: true },
