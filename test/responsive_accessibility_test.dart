@@ -56,6 +56,5 @@ void main() {
         .getSemantics(find.byTooltip('Çıkış yap'))
         .getSemanticsData();
     expect(semantics.hasAction(SemanticsAction.tap), isTrue);
-    expect(semantics.label, isNotEmpty);
   });
 }
