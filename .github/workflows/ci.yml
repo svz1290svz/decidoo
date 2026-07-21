@@ -27,9 +27,23 @@ jobs:
       - run: flutter pub get
       - name: Format sources
         run: dart format lib test
-      - name: Static analysis diagnostics
+      - name: Static analysis
+        id: analyze
         continue-on-error: true
-        run: flutter analyze 2>&1 | tee analyze.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter analyze 2>&1 | tee analyze.txt
+      - name: Upload analyzer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyzer-diagnostics
+          path: analyze.txt
+          retention-days: 7
+      - name: Enforce analyzer result
+        if: steps.analyze.outcome == 'failure'
+        run: exit 1
       - name: Run Flutter tests
         id: tests
         continue-on-error: true
@@ -49,13 +63,6 @@ jobs:
         run: exit 1
       - name: Build Android APK
         run: flutter build apk --debug
-      - name: Upload analyzer diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: analyzer-diagnostics
-          path: analyze.txt
-          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: decidoo-debug-apk
