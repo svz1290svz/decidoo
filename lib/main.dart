@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'src/auth/auth_gate.dart';
 import 'src/auth/auth_session_controller.dart';
 import 'src/observability/error_reporter.dart';
+import 'src/services/firebase_push_service.dart';
 
 void main() {
   final reporter = ErrorReporter();
@@ -39,6 +40,9 @@ void main() {
 
     final sessionController = AuthSessionController();
     await sessionController.restore();
+
+    final pushService = FirebasePushService(sessionController);
+    await pushService.initialize();
 
     runApp(AuthGate(controller: sessionController));
   }, (error, stackTrace) {
