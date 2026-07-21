@@ -85,7 +85,7 @@ jobs:
           --build-number="$BUILD_NUMBER"
           --dart-define=API_BASE_URL="$API_BASE_URL"
           --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: decidoo-android-release-candidate
           path: |
@@ -126,14 +126,14 @@ jobs:
             2>&1 | tee ios-build.log
       - name: Upload iOS build diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ios-build-diagnostics
           path: ios-build.log
           retention-days: 7
       - name: Archive unsigned app bundle
         run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app decidoo-ios-unsigned.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: decidoo-ios-unsigned-release-candidate
           path: decidoo-ios-unsigned.zip
