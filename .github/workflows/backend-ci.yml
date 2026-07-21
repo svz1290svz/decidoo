@@ -43,4 +43,6 @@ jobs:
       - name: Enforce typecheck
         if: steps.typecheck.outcome == 'failure'
         run: exit 1
+      - name: Run backend security tests
+        run: npm test
       - run: npm run build
