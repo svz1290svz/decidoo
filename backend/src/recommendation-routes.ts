@@ -34,7 +34,7 @@ const optionalUserId = (request: FastifyRequest): string | null => {
 
 const radians = (degrees: number): number => (degrees * Math.PI) / 180;
 
-const distanceKm = (
+export const distanceKm = (
   latitude: number,
   longitude: number,
   targetLatitude: number,
