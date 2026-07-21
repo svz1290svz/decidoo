@@ -44,7 +44,9 @@ class _AuthGateState extends State<AuthGate> {
 
     if (widget.controller.isAuthenticated) {
       final role = widget.controller.session?.user.role ?? 'USER';
-      if (role == 'ADMIN' || role == 'RESTAURANT_OWNER' || role == 'RESTAURANT_STAFF') {
+      if (role == 'ADMIN' ||
+          role == 'RESTAURANT_OWNER' ||
+          role == 'RESTAURANT_STAFF') {
         return ManagementApp(
           controller: widget.controller,
           isAdmin: role == 'ADMIN',
@@ -112,6 +114,27 @@ class _AuthPageState extends State<_AuthPage> {
     }
   }
 
+  Future<void> _requestPasswordReset() async {
+    FocusScope.of(context).unfocus();
+    final email = _email.text.trim();
+    if (!email.contains('@')) {
+      _show('Önce geçerli e-posta adresinizi girin.');
+      return;
+    }
+
+    final success = await widget.controller.requestPasswordReset(email);
+    if (!mounted) {
+      return;
+    }
+    if (success) {
+      _show(
+        'Bu e-posta ile kayıtlı aktif bir hesap varsa şifre sıfırlama bağlantısı gönderildi.',
+      );
+      return;
+    }
+    _show(_errorMessage(widget.controller.errorCode));
+  }
+
   void _show(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -123,6 +146,8 @@ class _AuthPageState extends State<_AuthPage> {
       'EMAIL_ALREADY_REGISTERED' => 'Bu e-posta daha önce kullanılmış.',
       'INVALID_CREDENTIALS' => 'E-posta veya şifre hatalı.',
       'ACCOUNT_UNAVAILABLE' => 'Hesap şu anda kullanılamıyor.',
+      'DELIVERY_UNAVAILABLE' =>
+        'Şifre sıfırlama servisi şu anda kullanılamıyor.',
       'SERVICE_UNAVAILABLE' =>
         'Sunucuya ulaşılamadı. Bağlantıyı kontrol edin.',
       _ => 'İşlem tamamlanamadı. Tekrar deneyin.',
@@ -215,7 +240,18 @@ class _AuthPageState extends State<_AuthPage> {
                         border: const OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    if (!_register) ...[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: widget.controller.isLoading
+                              ? null
+                              : _requestPasswordReset,
+                          child: const Text('Şifremi unuttum'),
+                        ),
+                      ),
+                    ] else
+                      const SizedBox(height: 20),
                     FilledButton(
                       onPressed:
                           widget.controller.isLoading ? null : _submit,
