@@ -8,6 +8,7 @@ import { env } from './config.js';
 import { prisma } from './db.js';
 import { registerEngagementRoutes } from './engagement-routes.js';
 import { registerOwnerRoutes } from './owner-routes.js';
+import { registerPushDeviceRoutes } from './push-device-routes.js';
 import { registerRecommendationFeedbackRoutes } from './recommendation-feedback-routes.js';
 import { registerRecommendationRoutes } from './recommendation-routes.js';
 import { registerRestaurantRoutes } from './restaurant-routes.js';
@@ -68,6 +69,7 @@ app.get('/v1', async () => ({
 await app.register(registerAuthRoutes);
 await app.register(registerAccountRoutes);
 await app.register(registerEngagementRoutes);
+await app.register(registerPushDeviceRoutes);
 await app.register(registerComplianceRoutes);
 await app.register(registerRestaurantRoutes);
 await app.register(registerRecommendationRoutes);
