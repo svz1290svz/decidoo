@@ -3,10 +3,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import 'src/auth/auth_gate.dart';
 import 'src/auth/auth_session_controller.dart';
 import 'src/observability/error_reporter.dart';
 import 'src/services/firebase_push_service.dart';
+import 'src/store_ready_gate.dart';
 
 void main() {
   final reporter = ErrorReporter();
@@ -47,7 +47,7 @@ void main() {
     runApp(
       PushNotificationHost(
         service: pushService,
-        child: AuthGate(controller: sessionController),
+        child: StoreReadyGate(controller: sessionController),
       ),
     );
   }, (error, stackTrace) {
