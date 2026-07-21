@@ -1,35 +1,21 @@
+import { ConsentType, DataRequestStatus, DataRequestType } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { verifyAccessToken } from './auth.js';
 import { prisma } from './db.js';
 
 type ConsentBody = {
-  type?: string;
+  type?: ConsentType;
   granted?: boolean;
   version?: string;
 };
 
 type DataRequestBody = {
-  type?: string;
+  type?: DataRequestType;
   note?: string;
 };
 
-const consentTypes = new Set([
-  'TERMS_OF_SERVICE',
-  'PRIVACY_POLICY',
-  'PERSONALIZATION',
-  'MARKETING_EMAIL',
-  'MARKETING_PUSH',
-  'LOCATION_PROCESSING',
-]);
-
-const dataRequestTypes = new Set([
-  'ACCESS',
-  'EXPORT',
-  'RECTIFICATION',
-  'DELETION',
-  'RESTRICTION',
-  'OBJECTION',
-]);
+const consentTypes = new Set<ConsentType>(Object.values(ConsentType));
+const dataRequestTypes = new Set<DataRequestType>(Object.values(DataRequestType));
 
 const userIdFromRequest = (request: FastifyRequest): string => {
   const header = request.headers.authorization;
@@ -49,7 +35,7 @@ export const registerComplianceRoutes = async (app: FastifyInstance): Promise<vo
         orderBy: { createdAt: 'desc' },
       });
 
-      const latestByType = new Map<string, (typeof records)[number]>();
+      const latestByType = new Map<ConsentType, (typeof records)[number]>();
       for (const record of records) {
         if (!latestByType.has(record.type)) latestByType.set(record.type, record);
       }
@@ -72,7 +58,7 @@ export const registerComplianceRoutes = async (app: FastifyInstance): Promise<vo
       const consent = await prisma.consentLog.create({
         data: {
           userId,
-          type: type as never,
+          type,
           granted,
           version: version.trim(),
           ipAddress: request.ip,
@@ -110,8 +96,8 @@ export const registerComplianceRoutes = async (app: FastifyInstance): Promise<vo
       const duplicate = await prisma.dataRequest.findFirst({
         where: {
           userId,
-          type: type as never,
-          status: { in: ['PENDING', 'IN_REVIEW'] },
+          type,
+          status: { in: [DataRequestStatus.PENDING, DataRequestStatus.IN_REVIEW] },
         },
       });
 
@@ -125,7 +111,7 @@ export const registerComplianceRoutes = async (app: FastifyInstance): Promise<vo
       const dataRequest = await prisma.dataRequest.create({
         data: {
           userId,
-          type: type as never,
+          type,
           note: note?.trim() || null,
         },
       });
