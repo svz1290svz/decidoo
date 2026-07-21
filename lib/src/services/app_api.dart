@@ -31,13 +31,14 @@ class AppApi {
     String path, {
     Map<String, dynamic>? body,
   }) async {
-    final token = controller.session?.accessToken;
-    if (token == null) throw const AppApiException('AUTH_REQUIRED');
-
-    final maxAttempts = method == 'GET' ? 2 : 1;
+    final maxTransportAttempts = method == 'GET' ? 2 : 1;
+    var authRefreshAttempted = false;
     Object? lastError;
 
-    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+    for (var attempt = 1; attempt <= maxTransportAttempts; attempt++) {
+      final token = controller.session?.accessToken;
+      if (token == null) throw const AppApiException('AUTH_REQUIRED');
+
       try {
         final request = await _client
             .openUrl(method, Uri.parse('$baseUrl$path'))
@@ -53,6 +54,20 @@ class AppApi {
             .join()
             .timeout(_requestTimeout);
         final payload = _decodePayload(raw);
+
+        if (response.statusCode == HttpStatus.unauthorized &&
+            !authRefreshAttempted) {
+          authRefreshAttempted = true;
+          final refreshed = await controller.refreshSession();
+          if (refreshed) {
+            attempt -= 1;
+            continue;
+          }
+          throw const AppApiException(
+            'AUTH_REQUIRED',
+            statusCode: HttpStatus.unauthorized,
+          );
+        }
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
           throw AppApiException(
@@ -73,7 +88,7 @@ class AppApi {
         throw const AppApiException('INVALID_SERVER_RESPONSE');
       }
 
-      if (attempt < maxAttempts) {
+      if (attempt < maxTransportAttempts) {
         await Future<void>.delayed(const Duration(milliseconds: 350));
       }
     }
