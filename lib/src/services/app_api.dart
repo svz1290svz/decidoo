@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../auth/auth_session_controller.dart';
+import 'offline_cache.dart';
 
 class AppApiException implements Exception {
   const AppApiException(this.code, {this.statusCode});
@@ -15,7 +16,12 @@ class AppApiException implements Exception {
 }
 
 class AppApi {
-  AppApi(this.controller, {HttpClient? client}) : _client = client ?? HttpClient();
+  AppApi(
+    this.controller, {
+    HttpClient? client,
+    OfflineCache? cache,
+  })  : _client = client ?? HttpClient(),
+        _cache = cache ?? OfflineCache();
 
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -25,6 +31,9 @@ class AppApi {
 
   final AuthSessionController controller;
   final HttpClient _client;
+  final OfflineCache _cache;
+
+  String _cacheKey(String key) => '${controller.session?.user.id ?? 'anonymous'}_$key';
 
   Future<Map<String, dynamic>> _request(
     String method,
@@ -46,6 +55,7 @@ class AppApi {
         request.headers.contentType = ContentType.json;
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
         request.headers.set(HttpHeaders.acceptHeader, ContentType.json.mimeType);
+        request.headers.set('x-client-platform', Platform.operatingSystem);
         if (body != null) request.write(jsonEncode(body));
 
         final response = await request.close().timeout(_requestTimeout);
@@ -89,7 +99,7 @@ class AppApi {
       }
 
       if (attempt < maxTransportAttempts) {
-        await Future<void>.delayed(const Duration(milliseconds: 350));
+        await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
       }
     }
 
@@ -97,6 +107,29 @@ class AppApi {
       throw const AppApiException('REQUEST_TIMEOUT');
     }
     throw const AppApiException('SERVICE_UNAVAILABLE');
+  }
+
+  Future<Map<String, dynamic>> _cachedRequest(
+    String cacheKey,
+    Future<Map<String, dynamic>> Function() loader, {
+    Duration ttl = const Duration(hours: 6),
+  }) async {
+    try {
+      final value = await loader();
+      await _cache.write(_cacheKey(cacheKey), value, ttl: ttl);
+      return value;
+    } on AppApiException catch (error) {
+      if (error.code != 'SERVICE_UNAVAILABLE' &&
+          error.code != 'REQUEST_TIMEOUT') {
+        rethrow;
+      }
+      final cached = await _cache.read(
+        _cacheKey(cacheKey),
+        allowExpired: true,
+      );
+      if (cached != null) return {...cached, '_offline': true};
+      rethrow;
+    }
   }
 
   Map<String, dynamic> _decodePayload(String raw) {
@@ -112,7 +145,11 @@ class AppApi {
     final suffix = query == null || query.trim().isEmpty
         ? ''
         : '?q=${Uri.encodeQueryComponent(query.trim())}';
-    final data = await _request('GET', '/v1/restaurants$suffix');
+    final data = await _cachedRequest(
+      'restaurants_$suffix',
+      () => _request('GET', '/v1/restaurants$suffix'),
+      ttl: const Duration(hours: 12),
+    );
     return (data['restaurants'] as List? ?? const [])
         .cast<Map<String, dynamic>>();
   }
@@ -122,20 +159,38 @@ class AppApi {
     double? latitude,
     double? longitude,
     double? maxDistanceKm,
+    String? cuisine,
+    String? mealType,
+    String? mood,
+    int? hungerLevel,
   }) async {
-    final data = await _request('POST', '/v1/recommendations', body: {
+    final requestBody = <String, dynamic>{
       if (maxBudget != null) 'maxBudget': maxBudget,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (maxDistanceKm != null) 'maxDistanceKm': maxDistanceKm,
+      if (cuisine != null && cuisine.trim().isNotEmpty) 'cuisine': cuisine.trim(),
+      if (mealType != null && mealType.trim().isNotEmpty)
+        'mealType': mealType.trim(),
+      if (mood != null && mood.trim().isNotEmpty) 'mood': mood.trim(),
+      if (hungerLevel != null) 'hungerLevel': hungerLevel,
       'limit': 10,
-    });
+    };
+    final cacheKey = 'recommendations_${base64Url.encode(utf8.encode(jsonEncode(requestBody)))}';
+    final data = await _cachedRequest(
+      cacheKey,
+      () => _request('POST', '/v1/recommendations', body: requestBody),
+      ttl: const Duration(hours: 2),
+    );
     return (data['results'] as List? ?? const [])
         .cast<Map<String, dynamic>>();
   }
 
   Future<List<Map<String, dynamic>>> favorites() async {
-    final data = await _request('GET', '/v1/favorites');
+    final data = await _cachedRequest(
+      'favorites',
+      () => _request('GET', '/v1/favorites'),
+    );
     return (data['favorites'] as List? ?? const [])
         .cast<Map<String, dynamic>>();
   }
@@ -145,11 +200,51 @@ class AppApi {
       if (restaurantId != null) 'restaurantId': restaurantId,
       if (mealId != null) 'mealId': mealId,
     });
+    await _cache.delete(_cacheKey('favorites'));
   }
 
   Future<void> removeFavorite(String id) async {
     await _request('DELETE', '/v1/favorites/$id');
+    await _cache.delete(_cacheKey('favorites'));
   }
+
+  Future<Map<String, dynamic>?> preferences() async {
+    final data = await _cachedRequest(
+      'preferences',
+      () => _request('GET', '/v1/me/preferences'),
+    );
+    return data['preference'] as Map<String, dynamic>?;
+  }
+
+  Future<Map<String, dynamic>> updatePreferences(
+    Map<String, dynamic> preferences,
+  ) async {
+    final data = await _request(
+      'PUT',
+      '/v1/me/preferences',
+      body: preferences,
+    );
+    await _cache.write(_cacheKey('preferences'), data);
+    return (data['preference'] as Map<String, dynamic>?) ?? const {};
+  }
+
+  Future<List<Map<String, dynamic>>> recentSearches() async {
+    final data = await _cachedRequest(
+      'recent_searches',
+      () => _request('GET', '/v1/me/recent-searches'),
+      ttl: const Duration(hours: 24),
+    );
+    return (data['searches'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
+  }
+
+  Future<void> clearRecentSearches() async {
+    await _request('DELETE', '/v1/me/recent-searches');
+    await _cache.delete(_cacheKey('recent_searches'));
+  }
+
+  Future<Map<String, dynamic>> personalizationSummary() =>
+      _request('GET', '/v1/me/personalization-summary');
 
   Future<void> updateProfile({
     required String displayName,
