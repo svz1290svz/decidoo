@@ -54,9 +54,15 @@ class AppApi {
 
   Future<List<Map<String, dynamic>>> recommendations({
     double? maxBudget,
+    double? latitude,
+    double? longitude,
+    double? maxDistanceKm,
   }) async {
     final data = await _request('POST', '/v1/recommendations', body: {
       if (maxBudget != null) 'maxBudget': maxBudget,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (maxDistanceKm != null) 'maxDistanceKm': maxDistanceKm,
       'limit': 10,
     });
     return (data['results'] as List? ?? const [])
