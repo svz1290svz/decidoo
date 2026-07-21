@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../management_app.dart';
 import '../production_app.dart';
 import 'auth_session_controller.dart';
 
@@ -42,6 +43,13 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (widget.controller.isAuthenticated) {
+      final role = widget.controller.session?.user.role ?? 'USER';
+      if (role == 'ADMIN' || role == 'RESTAURANT_OWNER' || role == 'RESTAURANT_STAFF') {
+        return ManagementApp(
+          controller: widget.controller,
+          isAdmin: role == 'ADMIN',
+        );
+      }
       return ProductionApp(controller: widget.controller);
     }
 
