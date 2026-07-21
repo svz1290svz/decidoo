@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:decidoo/src/app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,7 +50,9 @@ void main() {
 
   testWidgets('primary action exposes a semantic button', (tester) async {
     await pumpAtSize(tester, const Size(430, 932));
-    final semantics = tester.getSemantics(find.byKey(const Key('decide-button')));
+    final semantics = tester
+        .getSemantics(find.byKey(const Key('decide-button')))
+        .getSemanticsData();
     expect(semantics.hasAction(SemanticsAction.tap), isTrue);
     expect(semantics.label, isNotEmpty);
   });
