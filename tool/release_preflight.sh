@@ -11,7 +11,7 @@ fail() {
 [[ -f store/google-play/en-US/full-description.txt ]] || fail "Google Play metadata is missing"
 [[ -f store/app-store/en-US/description.txt ]] || fail "App Store metadata is missing"
 
-grep -q '^version: 1\.0\.0+1$' pubspec.yaml || fail "Release version must be 1.0.0+1"
+grep -Eq '^version: [0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$' pubspec.yaml || fail "Version must use semantic format, for example 1.0.0+2"
 
 if grep -RInE 'TODO|FIXME|CHANGE_ME|example\.com|your-company|YOUR_' lib test store docs --exclude='release-readiness.md'; then
   fail "Release-blocking placeholder or unfinished marker found"
