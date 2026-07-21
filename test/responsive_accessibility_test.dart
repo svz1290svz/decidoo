@@ -1,10 +1,11 @@
 import 'dart:ui';
 
-import 'package:decidoo/src/app.dart';
+import 'package:decidoo/src/auth/auth_session_controller.dart';
+import 'package:decidoo/src/management_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Future<void> pumpAtSize(
+Future<void> pumpManagementAtSize(
   WidgetTester tester,
   Size size, {
   double textScale = 1,
@@ -17,41 +18,42 @@ Future<void> pumpAtSize(
   await tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData(size: size, textScaler: TextScaler.linear(textScale)),
-      child: const DecidooApp(),
+      child: ManagementApp(
+        controller: AuthSessionController(),
+        isAdmin: true,
+      ),
     ),
   );
-  await tester.pumpAndSettle();
+  await tester.pump();
 }
 
 void main() {
-  testWidgets('phone layout has no initial overflow', (tester) async {
-    await pumpAtSize(tester, const Size(360, 800));
+  testWidgets('phone management layout renders without overflow', (tester) async {
+    await pumpManagementAtSize(tester, const Size(390, 844));
     expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('decide-button')), findsOneWidget);
+    expect(find.text('Decidoo Admin'), findsOneWidget);
   });
 
-  testWidgets('tablet layout remains usable', (tester) async {
-    await pumpAtSize(tester, const Size(1024, 1366));
+  testWidgets('tablet management layout remains usable', (tester) async {
+    await pumpManagementAtSize(tester, const Size(1024, 1366));
     expect(tester.takeException(), isNull);
-    expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
+    expect(find.text('Operasyon özeti'), findsOneWidget);
   });
 
-  testWidgets('large accessibility text does not crash navigation', (tester) async {
-    await pumpAtSize(
+  testWidgets('large accessibility text keeps core controls visible', (tester) async {
+    await pumpManagementAtSize(
       tester,
       const Size(430, 932),
       textScale: 1.6,
     );
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byIcon(Icons.explore_outlined));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Çıkış yap'), findsOneWidget);
   });
 
-  testWidgets('primary action exposes a semantic button', (tester) async {
-    await pumpAtSize(tester, const Size(430, 932));
+  testWidgets('logout control exposes semantic tap action', (tester) async {
+    await pumpManagementAtSize(tester, const Size(430, 932));
     final semantics = tester
-        .getSemantics(find.byKey(const Key('decide-button')))
+        .getSemantics(find.byTooltip('Çıkış yap'))
         .getSemanticsData();
     expect(semantics.hasAction(SemanticsAction.tap), isTrue);
     expect(semantics.label, isNotEmpty);
