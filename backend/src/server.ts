@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import { registerAccountRoutes } from './account-routes.js';
+import { registerAdminRoutes } from './admin-routes.js';
 import { registerAuthRoutes } from './auth-routes.js';
 import { registerComplianceRoutes } from './compliance-routes.js';
 import { env } from './config.js';
@@ -8,12 +9,17 @@ import { prisma } from './db.js';
 import { registerOwnerRoutes } from './owner-routes.js';
 import { registerRecommendationRoutes } from './recommendation-routes.js';
 import { registerRestaurantRoutes } from './restaurant-routes.js';
+import { registerSecurity } from './security.js';
 
 const app = Fastify({
   logger: {
     level: env.NODE_ENV === 'production' ? 'info' : 'debug',
   },
+  trustProxy: true,
+  bodyLimit: 1_048_576,
 });
+
+await app.register(registerSecurity);
 
 app.get('/health', async (_request, reply) => {
   try {
@@ -38,7 +44,7 @@ app.get('/health', async (_request, reply) => {
 
 app.get('/v1', async () => ({
   name: 'Decidoo API',
-  version: '0.6.0',
+  version: '0.7.0',
   principle: 'Trust first. Sponsored recommendations are always disclosed.',
 }));
 
@@ -48,6 +54,7 @@ await app.register(registerComplianceRoutes);
 await app.register(registerRestaurantRoutes);
 await app.register(registerRecommendationRoutes);
 await app.register(registerOwnerRoutes);
+await app.register(registerAdminRoutes);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info({ signal }, 'Shutting down');
