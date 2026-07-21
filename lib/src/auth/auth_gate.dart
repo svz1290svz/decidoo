@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../production_shell.dart';
+import '../production_app.dart';
 import 'auth_session_controller.dart';
 
 class AuthGate extends StatefulWidget {
@@ -25,7 +25,9 @@ class _AuthGateState extends State<AuthGate> {
     super.dispose();
   }
 
-  void _refresh() => setState(() {});
+  void _refresh() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +42,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (widget.controller.isAuthenticated) {
-      return ProductionShell(controller: widget.controller);
+      return ProductionApp(controller: widget.controller);
     }
 
     return MaterialApp(
@@ -103,16 +105,21 @@ class _AuthPageState extends State<_AuthPage> {
   }
 
   void _show(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
-  String _errorMessage(String? code) => switch (code) {
-        'EMAIL_ALREADY_REGISTERED' => 'Bu e-posta daha önce kullanılmış.',
-        'INVALID_CREDENTIALS' => 'E-posta veya şifre hatalı.',
-        'ACCOUNT_UNAVAILABLE' => 'Hesap şu anda kullanılamıyor.',
-        'SERVICE_UNAVAILABLE' => 'Sunucuya ulaşılamadı. Bağlantıyı kontrol edin.',
-        _ => 'İşlem tamamlanamadı. Tekrar deneyin.',
-      };
+  String _errorMessage(String? code) {
+    return switch (code) {
+      'EMAIL_ALREADY_REGISTERED' => 'Bu e-posta daha önce kullanılmış.',
+      'INVALID_CREDENTIALS' => 'E-posta veya şifre hatalı.',
+      'ACCOUNT_UNAVAILABLE' => 'Hesap şu anda kullanılamıyor.',
+      'SERVICE_UNAVAILABLE' =>
+        'Sunucuya ulaşılamadı. Bağlantıyı kontrol edin.',
+      _ => 'İşlem tamamlanamadı. Tekrar deneyin.',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,11 +145,16 @@ class _AuthPageState extends State<_AuthPage> {
                     const Text(
                       'DECIDOO',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _register ? 'Ücretsiz hesabını oluştur' : 'Yemek kararına devam et',
+                      _register
+                          ? 'Ücretsiz hesabını oluştur'
+                          : 'Yemek kararına devam et',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Color(0xFF9DA3BA)),
                     ),
@@ -174,20 +186,31 @@ class _AuthPageState extends State<_AuthPage> {
                     TextField(
                       controller: _password,
                       obscureText: _obscure,
-                      onSubmitted: (_) => _submit(),
+                      onSubmitted: (_) {
+                        _submit();
+                      },
                       decoration: InputDecoration(
-                        labelText: _register ? 'Şifre (en az 10 karakter)' : 'Şifre',
+                        labelText: _register
+                            ? 'Şifre (en az 10 karakter)'
+                            : 'Şifre',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                          onPressed: () {
+                            setState(() => _obscure = !_obscure);
+                          },
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
                         ),
                         border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 20),
                     FilledButton(
-                      onPressed: widget.controller.isLoading ? null : _submit,
+                      onPressed:
+                          widget.controller.isLoading ? null : _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: orange,
                         minimumSize: const Size.fromHeight(56),
@@ -195,22 +218,36 @@ class _AuthPageState extends State<_AuthPage> {
                       child: widget.controller.isLoading
                           ? const SizedBox.square(
                               dimension: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
                             )
-                          : Text(_register ? 'HESAP OLUŞTUR' : 'GİRİŞ YAP'),
+                          : Text(
+                              _register ? 'HESAP OLUŞTUR' : 'GİRİŞ YAP',
+                            ),
                     ),
                     const SizedBox(height: 12),
                     TextButton(
                       onPressed: widget.controller.isLoading
                           ? null
-                          : () => setState(() => _register = !_register),
-                      child: Text(_register ? 'Zaten hesabım var' : 'Yeni hesap oluştur'),
+                          : () {
+                              setState(() => _register = !_register);
+                            },
+                      child: Text(
+                        _register
+                            ? 'Zaten hesabım var'
+                            : 'Yeni hesap oluştur',
+                      ),
                     ),
                     if (_register)
                       const Text(
-                        'Devam ederek kullanım koşullarını ve gizlilik politikasını kabul edersiniz.',
+                        'Devam ederek kullanım koşullarını ve gizlilik '
+                        'politikasını kabul edersiniz.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Color(0xFF9DA3BA)),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9DA3BA),
+                        ),
                       ),
                   ],
                 ),
