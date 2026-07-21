@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'src/app.dart';
+import 'src/auth/auth_gate.dart';
+import 'src/auth/auth_session_controller.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const DecidooApp());
+
+  final sessionController = AuthSessionController();
+  await sessionController.restore();
+
+  runApp(AuthGate(controller: sessionController));
 }
