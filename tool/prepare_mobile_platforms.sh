@@ -24,6 +24,23 @@ if plist.exists():
         addition = '\t<key>NSLocationWhenInUseUsageDescription</key>\n\t<string>Yakındaki restoranları ve yemekleri önermek için konumunuz kullanılır.</string>\n'
         text = text.replace('</dict>', addition + '</dict>')
         plist.write_text(text)
+
+podfile = Path('ios/Podfile')
+if podfile.exists():
+    text = podfile.read_text()
+    if "platform :ios" in text:
+        import re
+        text = re.sub(r"#?\s*platform :ios,\s*'[^']+'", "platform :ios, '15.0'", text, count=1)
+    else:
+        text = "platform :ios, '15.0'\n\n" + text
+    podfile.write_text(text)
+
+project = Path('ios/Runner.xcodeproj/project.pbxproj')
+if project.exists():
+    text = project.read_text()
+    import re
+    text = re.sub(r'IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;', 'IPHONEOS_DEPLOYMENT_TARGET = 15.0;', text)
+    project.write_text(text)
 PY
 
-echo "Mobile platforms prepared with Decidoo location permissions."
+echo "Mobile platforms prepared with Decidoo permissions and iOS 15 deployment target."
