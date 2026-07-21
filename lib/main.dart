@@ -44,7 +44,12 @@ void main() {
     final pushService = FirebasePushService(sessionController);
     await pushService.initialize();
 
-    runApp(AuthGate(controller: sessionController));
+    runApp(
+      PushNotificationHost(
+        service: pushService,
+        child: AuthGate(controller: sessionController),
+      ),
+    );
   }, (error, stackTrace) {
     unawaited(
       reporter.record(
