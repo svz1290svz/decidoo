@@ -2,6 +2,7 @@
   "name": "@decidoo/backend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Decidoo API and recommendation platform backend",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -30,6 +31,6 @@
     "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }
