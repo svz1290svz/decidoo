@@ -22,8 +22,8 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Generate mobile platforms
-        run: flutter create --platforms=android,ios --org com.decidoo .
+      - name: Generate mobile platforms and permissions
+        run: bash tool/prepare_mobile_platforms.sh
       - run: flutter pub get
       - name: Format sources
         run: dart format lib test
