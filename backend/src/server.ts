@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import { registerAuthRoutes } from './auth-routes.js';
+import { registerComplianceRoutes } from './compliance-routes.js';
 import { env } from './config.js';
 import { prisma } from './db.js';
 
@@ -33,11 +34,12 @@ app.get('/health', async (_request, reply) => {
 
 app.get('/v1', async () => ({
   name: 'Decidoo API',
-  version: '0.2.0',
+  version: '0.3.0',
   principle: 'Trust first. Sponsored recommendations are always disclosed.',
 }));
 
 await app.register(registerAuthRoutes);
+await app.register(registerComplianceRoutes);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info({ signal }, 'Shutting down');
