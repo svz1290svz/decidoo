@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app.dart';
+import '../production_shell.dart';
 import 'auth_session_controller.dart';
 
 class AuthGate extends StatefulWidget {
@@ -40,7 +40,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (widget.controller.isAuthenticated) {
-      return const DecidooApp();
+      return ProductionShell(controller: widget.controller);
     }
 
     return MaterialApp(
@@ -204,9 +204,7 @@ class _AuthPageState extends State<_AuthPage> {
                       onPressed: widget.controller.isLoading
                           ? null
                           : () => setState(() => _register = !_register),
-                      child: Text(
-                        _register ? 'Zaten hesabım var' : 'Yeni hesap oluştur',
-                      ),
+                      child: Text(_register ? 'Zaten hesabım var' : 'Yeni hesap oluştur'),
                     ),
                     if (_register)
                       const Text(
