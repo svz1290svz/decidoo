@@ -79,6 +79,18 @@ class ManagementApi {
         .cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> updateOperatingHours({
+    required String restaurantId,
+    required List<Map<String, dynamic>> hours,
+  }) async {
+    final data = await _request(
+      'PUT',
+      '/v1/owner/restaurants/$restaurantId/operating-hours',
+      body: {'hours': hours},
+    );
+    return (data['hours'] as List? ?? const []).cast<Map<String, dynamic>>();
+  }
+
   Future<void> createCategory({
     required String restaurantId,
     required String name,
