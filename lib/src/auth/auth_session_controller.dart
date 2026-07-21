@@ -67,6 +67,25 @@ class AuthSessionController extends ChangeNotifier {
     );
   }
 
+  Future<bool> requestPasswordReset(String email) async {
+    _loading = true;
+    _errorCode = null;
+    notifyListeners();
+    try {
+      await _api.requestPasswordReset(email.trim());
+      return true;
+    } on AuthApiException catch (error) {
+      _errorCode = error.code;
+      return false;
+    } catch (_) {
+      _errorCode = 'SERVICE_UNAVAILABLE';
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     final refreshToken = _session?.refreshToken;
     _session = null;
