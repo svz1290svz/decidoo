@@ -7,6 +7,7 @@ import { registerComplianceRoutes } from './compliance-routes.js';
 import { env } from './config.js';
 import { prisma } from './db.js';
 import { registerOwnerRoutes } from './owner-routes.js';
+import { registerRecommendationFeedbackRoutes } from './recommendation-feedback-routes.js';
 import { registerRecommendationRoutes } from './recommendation-routes.js';
 import { registerRestaurantRoutes } from './restaurant-routes.js';
 import { registerSecurity } from './security.js';
@@ -44,7 +45,7 @@ app.get('/health', async (_request, reply) => {
 
 app.get('/v1', async () => ({
   name: 'Decidoo API',
-  version: '0.7.0',
+  version: '0.8.0',
   principle: 'Trust first. Sponsored recommendations are always disclosed.',
 }));
 
@@ -53,6 +54,7 @@ await app.register(registerAccountRoutes);
 await app.register(registerComplianceRoutes);
 await app.register(registerRestaurantRoutes);
 await app.register(registerRecommendationRoutes);
+await app.register(registerRecommendationFeedbackRoutes);
 await app.register(registerOwnerRoutes);
 await app.register(registerAdminRoutes);
 
