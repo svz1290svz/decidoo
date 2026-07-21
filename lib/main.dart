@@ -1,13 +1,54 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import 'src/auth/auth_gate.dart';
 import 'src/auth/auth_session_controller.dart';
+import 'src/observability/error_reporter.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  final reporter = ErrorReporter();
 
-  final sessionController = AuthSessionController();
-  await sessionController.restore();
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(AuthGate(controller: sessionController));
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      unawaited(
+        reporter.record(
+          details.exception,
+          details.stack ?? StackTrace.current,
+          fatal: true,
+          source: 'flutter',
+        ),
+      );
+    };
+
+    PlatformDispatcher.instance.onError = (error, stackTrace) {
+      unawaited(
+        reporter.record(
+          error,
+          stackTrace,
+          fatal: true,
+          source: 'platform',
+        ),
+      );
+      return true;
+    };
+
+    final sessionController = AuthSessionController();
+    await sessionController.restore();
+
+    runApp(AuthGate(controller: sessionController));
+  }, (error, stackTrace) {
+    unawaited(
+      reporter.record(
+        error,
+        stackTrace,
+        fatal: true,
+        source: 'zone',
+      ),
+    );
+  });
 }

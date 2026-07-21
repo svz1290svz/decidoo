@@ -21,6 +21,10 @@ concurrency:
   group: store-release-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PRODUCTION_API_BASE_URL: ${{ vars.PRODUCTION_API_BASE_URL }}
+  ERROR_REPORT_URL: ${{ vars.ERROR_REPORT_URL }}
+
 jobs:
   quality:
     name: Quality gate
@@ -36,6 +40,13 @@ jobs:
       - run: flutter pub get
       - name: Release preflight
         run: bash tool/release_preflight.sh
+      - name: Validate tagged production configuration
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          [[ "$PRODUCTION_API_BASE_URL" =~ ^https:// ]] || {
+            echo "::error::Repository variable PRODUCTION_API_BASE_URL must be a valid HTTPS URL for tagged releases"
+            exit 1
+          }
       - name: Normalize Dart sources
         run: dart format lib test
       - run: flutter analyze
@@ -54,10 +65,26 @@ jobs:
       - name: Generate Android project and permissions
         run: bash tool/prepare_mobile_platforms.sh
       - run: flutter pub get
+      - name: Resolve build configuration
+        run: |
+          VERSION_LINE=$(awk '/^version:/{print $2}' pubspec.yaml)
+          echo "BUILD_NAME=${VERSION_LINE%%+*}" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${VERSION_LINE##*+}" >> "$GITHUB_ENV"
+          echo "API_BASE_URL=${PRODUCTION_API_BASE_URL:-https://api.decidoo.invalid}" >> "$GITHUB_ENV"
       - name: Build release AAB
-        run: flutter build appbundle --release --build-name=1.0.0 --build-number=2
+        run: >-
+          flutter build appbundle --release
+          --build-name="$BUILD_NAME"
+          --build-number="$BUILD_NUMBER"
+          --dart-define=API_BASE_URL="$API_BASE_URL"
+          --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL"
       - name: Build universal release APK
-        run: flutter build apk --release --build-name=1.0.0 --build-number=2
+        run: >-
+          flutter build apk --release
+          --build-name="$BUILD_NAME"
+          --build-number="$BUILD_NUMBER"
+          --dart-define=API_BASE_URL="$API_BASE_URL"
+          --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL"
       - uses: actions/upload-artifact@v4
         with:
           name: decidoo-android-release-candidate
@@ -82,8 +109,19 @@ jobs:
       - name: Generate iOS project and permissions
         run: bash tool/prepare_mobile_platforms.sh
       - run: flutter pub get
+      - name: Resolve build configuration
+        run: |
+          VERSION_LINE=$(awk '/^version:/{print $2}' pubspec.yaml)
+          echo "BUILD_NAME=${VERSION_LINE%%+*}" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${VERSION_LINE##*+}" >> "$GITHUB_ENV"
+          echo "API_BASE_URL=${PRODUCTION_API_BASE_URL:-https://api.decidoo.invalid}" >> "$GITHUB_ENV"
       - name: Build iOS release without signing
-        run: flutter build ios --release --no-codesign --build-name=1.0.0 --build-number=2
+        run: >-
+          flutter build ios --release --no-codesign
+          --build-name="$BUILD_NAME"
+          --build-number="$BUILD_NUMBER"
+          --dart-define=API_BASE_URL="$API_BASE_URL"
+          --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL"
       - name: Archive unsigned app bundle
         run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app decidoo-ios-unsigned.zip
       - uses: actions/upload-artifact@v4

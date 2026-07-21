@@ -17,6 +17,7 @@ class AuthSessionController extends ChangeNotifier {
   AuthSession? _session;
   bool _loading = true;
   String? _errorCode;
+  Future<bool>? _refreshInFlight;
 
   AuthSession? get session => _session;
   bool get isAuthenticated => _session != null;
@@ -38,12 +39,58 @@ class AuthSessionController extends ChangeNotifier {
     try {
       _session = await _api.refresh(refreshToken);
       await _persist(_session!);
+    } on AuthApiException catch (error) {
+      _errorCode = error.code;
+      _session = null;
+      if (_isTerminalAuthError(error)) {
+        await _clearStoredTokens();
+      }
     } catch (_) {
-      await _clearStoredTokens();
+      _errorCode = 'SERVICE_UNAVAILABLE';
       _session = null;
     } finally {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  Future<bool> refreshSession() {
+    final active = _refreshInFlight;
+    if (active != null) return active;
+
+    final operation = _performRefresh();
+    _refreshInFlight = operation;
+    operation.whenComplete(() {
+      if (identical(_refreshInFlight, operation)) {
+        _refreshInFlight = null;
+      }
+    });
+    return operation;
+  }
+
+  Future<bool> _performRefresh() async {
+    final refreshToken = _session?.refreshToken ??
+        await _storage.read(key: _refreshTokenKey);
+    if (refreshToken == null || refreshToken.isEmpty) return false;
+
+    try {
+      final refreshed = await _api.refresh(refreshToken);
+      _session = refreshed;
+      _errorCode = null;
+      await _persist(refreshed);
+      notifyListeners();
+      return true;
+    } on AuthApiException catch (error) {
+      _errorCode = error.code;
+      if (_isTerminalAuthError(error)) {
+        _session = null;
+        await _clearStoredTokens();
+        notifyListeners();
+      }
+      return false;
+    } catch (_) {
+      _errorCode = 'SERVICE_UNAVAILABLE';
+      return false;
     }
   }
 
@@ -122,6 +169,12 @@ class AuthSessionController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  bool _isTerminalAuthError(AuthApiException error) =>
+      error.statusCode == 401 ||
+      error.statusCode == 403 ||
+      error.code == 'INVALID_REFRESH_TOKEN' ||
+      error.code == 'SESSION_REVOKED';
 
   Future<void> _persist(AuthSession session) async {
     await Future.wait([
