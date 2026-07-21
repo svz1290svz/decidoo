@@ -4,6 +4,7 @@ import { registerAuthRoutes } from './auth-routes.js';
 import { registerComplianceRoutes } from './compliance-routes.js';
 import { env } from './config.js';
 import { prisma } from './db.js';
+import { registerRestaurantRoutes } from './restaurant-routes.js';
 
 const app = Fastify({
   logger: {
@@ -34,12 +35,13 @@ app.get('/health', async (_request, reply) => {
 
 app.get('/v1', async () => ({
   name: 'Decidoo API',
-  version: '0.3.0',
+  version: '0.4.0',
   principle: 'Trust first. Sponsored recommendations are always disclosed.',
 }));
 
 await app.register(registerAuthRoutes);
 await app.register(registerComplianceRoutes);
+await app.register(registerRestaurantRoutes);
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info({ signal }, 'Shutting down');
