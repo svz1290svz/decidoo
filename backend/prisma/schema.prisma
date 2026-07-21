@@ -401,3 +401,47 @@ model Media {
 
   @@index([ownerType, ownerId, sortOrder])
 }
+
+model PushDevice {
+  id             String   @id
+  userId         String
+  tokenHash      String   @unique
+  encryptedToken String
+  platform       String
+  locale         String?
+  timezone       String?
+  enabled        Boolean  @default(true)
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, enabled])
+}
+
+model AuditEvent {
+  id          String   @id
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  requestId   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model RestaurantOperatingHour {
+  id           String   @id @default(cuid())
+  restaurantId String
+  dayOfWeek    Int
+  opensAt      String?
+  closesAt     String?
+  isClosed     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([restaurantId, dayOfWeek])
+  @@index([restaurantId, dayOfWeek])
+}
