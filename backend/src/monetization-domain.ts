@@ -13,9 +13,14 @@ export const minorUnits = (amount: number, currency: string): bigint => {
 
 export const sponsoredDisclosure = (locale = 'en'): string => {
   const labels: Record<string, string> = {
-    tr: 'Sponsorlu', en: 'Sponsored', de: 'Gesponsert', fr: 'Sponsorisé', es: 'Patrocinado', ar: 'إعلان ممول',
+    tr: 'Sponsorlu',
+    en: 'Sponsored',
+    de: 'Gesponsert',
+    fr: 'Sponsorisé',
+    es: 'Patrocinado',
+    ar: 'إعلان ممول',
   };
-  return labels[locale] ?? labels.en;
+  return labels[locale] ?? labels.en ?? 'Sponsored';
 };
 
 export const canBillAction = (action: string): action is BillableAction =>
