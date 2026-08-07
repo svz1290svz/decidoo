@@ -1,15 +1,12 @@
-# Decidoo 1.0.0 Store Release Runbook
+# Decidoo Store Release Runbook
 
 ## Release identity
 
 - Product name: Decidoo
 - Android application ID: `com.decidoo.decidoo`
 - iOS bundle ID: `com.decidoo.decidoo`
-- Marketing version: `1.0.0`
-- Build number: `1`
 - Primary category: Food & Drink
 - Secondary category: Lifestyle
-- Content rating target: Everyone / 4+
 
 ## Automated quality gates
 
@@ -17,124 +14,131 @@ A release candidate is accepted only when all of the following pass:
 
 - Dart formatting
 - Flutter static analysis
-- Unit tests
-- Widget smoke tests
+- Unit and widget tests
 - Android release APK build
 - Android release AAB build
 - iOS release build without code signing
-- Secret scan preflight
-- Store metadata presence check
-- Privacy policy presence check
+- Secret scan/release preflight
+- Store metadata and privacy-policy presence checks
+
+A Git tag matching `v*` is treated as a production release and MUST have a real HTTPS `PRODUCTION_API_BASE_URL`. Placeholder `.invalid` addresses are rejected. Pull-request artifacts are validation/demo artifacts and must never be submitted to an app store as production builds.
 
 ## Google Play Console configuration
 
-### App content
+### App access
 
-- Ads: No ads in version 1.0.0
-- App access: All functionality is available without login
-- Target audience: General audience; not specifically designed for children
-- News app: No
-- Government app: No
-- Financial features: No
-- Health features: No
-- Data safety: Complete even though no user data is collected
-- Privacy policy: Publish `docs/privacy-policy.md` at a stable HTTPS URL and enter that URL
+The production service supports authenticated accounts. If Google Play review cannot access all reviewable functionality without an account, provide a valid review account and clear access instructions in Play Console.
 
-### Data safety answers for version 1.0.0
+### Data Safety
 
-- Data collected: No
-- Data shared: No
-- Data encrypted in transit: Not applicable because no user data is transmitted
-- Account deletion: Not applicable because the app has no account system
-- Location: Not collected
-- Personal information: Not collected
-- App activity: Not transmitted
-- Device identifiers: Not collected
-- Advertising ID: Not used
+Do **not** select `Data collected: No` for the production connected application. Complete Google Play Data Safety based on the exact services enabled in the submitted build. Expected categories may include:
+
+- account/personal information such as email and display name;
+- app activity such as favorites, recommendations and interaction history;
+- location when the user grants permission;
+- device identifiers or push tokens used for notifications;
+- diagnostics required for crash/error reporting when enabled.
+
+The declaration must distinguish required data from optional data and must match actual retention, encryption, deletion and sharing behavior. No advertising ID is required by the current core implementation unless a future advertising SDK introduces it.
+
+### Account deletion
+
+The production application provides an authenticated account-deletion capability backed by `/v1/me/account`. Google Play's account deletion declarations and any required web deletion URL must point to the final production support/privacy surface.
 
 ### Release artifact
 
-Upload the signed `app-release.aab`. Google Play App Signing should be enabled. The unsigned or debug-signed validation artifact from CI must not be submitted as the production bundle.
+Upload only a properly signed production `app-release.aab` produced with the real HTTPS API configuration. Validation/demo AABs or debug-signed artifacts must not be submitted.
 
 ## App Store Connect configuration
 
-### App privacy answers for version 1.0.0
+### App Privacy
 
-Select **Data Not Collected**. The application does not transmit preferences, identifiers, analytics, location, purchase data, or diagnostics to a Decidoo server or third-party SDK.
+Do **not** select `Data Not Collected` for the connected production service. App Privacy answers must match the exact enabled production functionality, including account data, personalization activity, optional location, push notification identifiers and diagnostics where applicable.
 
 ### Review information
 
-- Login required: No
-- Demo account: Not required
-- Tracking permission: Not requested
-- In-app purchases: Not enabled in version 1.0.0
-- External purchases: None
-- User-generated content: None
-- Location features: None
+- Login may be required for connected account features.
+- Provide a stable reviewer account if Apple cannot evaluate required functionality without one.
+- Location is optional and used for nearby/distance-based recommendations when permission is granted.
+- Notifications are optional and require platform permission.
+- Tracking permission is not required unless a future SDK performs cross-app/site tracking.
 
 ### Build requirements
 
-The final App Store archive must be built on macOS using the current App Store-required Xcode and iOS SDK. A valid Apple Distribution certificate, App Store provisioning profile, Apple Team ID, and App Store Connect API credentials are required for upload.
+The final App Store archive must be built with the App Store-required Xcode/iOS SDK and signed with valid Apple distribution credentials. The unsigned CI artifact is validation-only.
 
-## Required private credentials
+## Production behavior that store declarations must cover
 
-These values must never be committed to GitHub:
+- account registration, login, refresh-token sessions and password reset;
+- user profile and preferred language;
+- food preferences, budgets, distance settings and personalization;
+- favorites and recommendation interaction history;
+- optional device location;
+- optional push notifications;
+- restaurant owner/admin management data;
+- security/audit logs and configured diagnostics;
+- account deletion and privacy-request workflows.
+
+## Required private credentials and external configuration
+
+These must never be committed to GitHub:
+
+### Backend / shared
+
+- production database URL
+- JWT secrets
+- push-token encryption key
+- production API domain/HTTPS deployment
+- email delivery credentials
+- Firebase/APNs configuration where notifications are enabled
+- approved error-reporting endpoint and credentials where enabled
 
 ### Android
 
-- Production upload keystore file
-- Keystore password
-- Key alias
-- Key password
-- Google Play service-account JSON, only if automated upload is enabled
+- production upload keystore
+- keystore password
+- key alias and key password
+- Google Play service-account credentials if automated upload is enabled
 
 ### Apple
 
 - Apple Developer Team ID
-- App Store Connect issuer ID
-- App Store Connect key ID
+- App Store Connect issuer ID and key ID
 - App Store Connect API private key
-- Distribution certificate and password, if certificate-based signing is used
-- Provisioning profile, if automatic signing is not used
+- distribution certificate/provisioning credentials as applicable
 
-Store these values in GitHub Actions secrets or in the CI provider's encrypted credential store.
+## Visual and legal assets requiring account-owner approval
 
-## Visual assets still requiring account-owner approval
-
-- 1024 × 1024 App Store icon without transparency
-- Google Play 512 × 512 icon
-- Google Play 1024 × 500 feature graphic
-- Phone screenshots for supported screen sizes
-- Optional tablet screenshots
-- Final support URL and privacy-policy URL
-
-These assets must accurately show the released application. Generated marketing images must not depict functionality absent from version 1.0.0.
+- final application icons
+- Google Play feature graphic
+- current phone/tablet screenshots of the exact submitted build
+- stable HTTPS privacy-policy URL
+- stable HTTPS support URL
+- final store descriptions and localization
 
 ## Manual release sequence
 
-1. Confirm product name and bundle identifiers are available in both developer portals.
-2. Publish the privacy policy at a stable HTTPS URL.
-3. Create the applications in Play Console and App Store Connect.
-4. Configure signing credentials outside the repository.
-5. Run `Store Release Readiness` in GitHub Actions.
-6. Download and install the Android release APK on at least one physical device.
-7. Upload the signed AAB to Google Play internal testing.
-8. Upload the signed iOS archive to TestFlight.
-9. Complete Play Data Safety and Apple App Privacy forms using this document.
-10. Test the Play internal-test build and TestFlight build on physical devices.
-11. Add approved screenshots, descriptions, support URL, and privacy URL.
-12. Submit to review only after both physical-device smoke tests pass.
+1. Deploy the production backend and database.
+2. Publish the privacy policy and support page at stable HTTPS URLs.
+3. Set repository variable `PRODUCTION_API_BASE_URL` to the real production HTTPS API.
+4. Configure Firebase/APNs, email, signing and remaining production secrets.
+5. Run backend smoke tests against the production/staging environment.
+6. Create a tagged release only after the production API health/readiness endpoints pass.
+7. Install the resulting signed Android build on a physical device and test registration/login, recommendation, location-denied/location-granted behavior, favorites, language changes, offline recovery, logout/login and account deletion.
+8. Upload the signed AAB to Google Play internal testing and run another physical-device smoke test.
+9. Upload the signed iOS build to TestFlight and run the same smoke test on iPhone.
+10. Complete Google Play Data Safety and Apple App Privacy using the exact submitted functionality.
+11. Submit only when store declarations, privacy policy and runtime behavior match.
 
 ## Release blockers
 
-A production submission must not proceed when any of these remain unresolved:
+Do not submit while any of these are unresolved:
 
-- Missing Apple or Google developer account access
-- Missing production signing credentials
-- Default Flutter launcher icon
-- Missing final screenshots
-- Privacy policy not hosted at an HTTPS URL
-- Bundle ID or application ID conflict
-- Store metadata does not match actual app behavior
-- A CI job is not green
-- Physical-device smoke test has not been completed
+- missing or unreachable production HTTPS API;
+- placeholder API URL inside the build;
+- missing production signing credentials;
+- privacy/store disclosures inconsistent with actual account, location, notification or diagnostics behavior;
+- account deletion not verified end-to-end;
+- missing final privacy/support URLs;
+- a required CI job is not green;
+- Android physical-device and iOS TestFlight smoke tests have not passed.
