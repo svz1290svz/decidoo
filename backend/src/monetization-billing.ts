@@ -27,6 +27,15 @@ const asNumber = (value: unknown): number => {
   return Number.NaN;
 };
 
+export const smartCampaignIdFromReasons = (
+  reasons: readonly string[],
+): string | null => {
+  const prefix = 'SMART_CAMPAIGN:';
+  const reason = reasons.find((item) => item.startsWith(prefix));
+  const id = reason?.slice(prefix.length).trim();
+  return id ? id : null;
+};
+
 export const selectChargeCampaign = (
   campaigns: CampaignForBilling[],
   action: string,
@@ -39,7 +48,8 @@ export const selectChargeCampaign = (
     .filter((campaign) => campaign.startsAt <= now && campaign.endsAt >= now)
     .filter(
       (campaign) =>
-        campaign.channel === 'PER_ACTION' || campaign.channel === 'SMART_CAMPAIGN',
+        campaign.channel === 'PER_ACTION' ||
+        campaign.channel === 'SMART_CAMPAIGN',
     )
     .map((campaign) => ({
       campaign,
@@ -53,7 +63,9 @@ export const selectChargeCampaign = (
         item.bid > 0 &&
         item.remaining >= item.bid,
     )
-    .sort((a, b) => b.bid - a.bid || a.campaign.id.localeCompare(b.campaign.id));
+    .sort(
+      (a, b) => b.bid - a.bid || a.campaign.id.localeCompare(b.campaign.id),
+    );
 
   const winner = eligible[0];
   if (!winner) return null;
