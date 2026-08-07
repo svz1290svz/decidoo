@@ -178,46 +178,60 @@ class ManagementApi {
     List<String> targetMealTypes = const [],
     List<String> targetCuisines = const [],
     double? bidPerAction,
-  }) async {
-    final data = await _request(
-      'POST',
-      '/v1/owner/monetization/campaigns',
-      body: {
-        'restaurantId': restaurantId,
-        'name': name,
-        'channel': channel,
-        'budget': budget,
-        'currency': currency,
-        'countryCode': countryCode,
-        'startsAt': startsAt.toUtc().toIso8601String(),
-        'endsAt': endsAt.toUtc().toIso8601String(),
-        if (targetRadiusKm != null) 'targetRadiusKm': targetRadiusKm,
-        'targetMealTypes': targetMealTypes,
-        'targetCuisines': targetCuisines,
-        if (bidPerAction != null) 'bidPerAction': bidPerAction,
-      },
-    );
-    return (data['campaign'] as Map<String, dynamic>? ?? data);
-  }
+  }) =>
+      _request(
+        'POST',
+        '/v1/owner/monetization/campaigns',
+        body: {
+          'restaurantId': restaurantId,
+          'name': name,
+          'channel': channel,
+          'budget': budget,
+          'currency': currency,
+          'countryCode': countryCode,
+          'startsAt': startsAt.toUtc().toIso8601String(),
+          'endsAt': endsAt.toUtc().toIso8601String(),
+          if (targetRadiusKm != null) 'targetRadiusKm': targetRadiusKm,
+          'targetMealTypes': targetMealTypes,
+          'targetCuisines': targetCuisines,
+          if (bidPerAction != null) 'bidPerAction': bidPerAction,
+        },
+      );
+
+  Future<Map<String, dynamic>> createCampaignPaymentIntent(
+    String campaignId,
+  ) =>
+      _request(
+        'POST',
+        '/v1/owner/monetization/campaigns/$campaignId/payment-intent',
+      );
+
+  Future<Map<String, dynamic>> updateCampaignStatus({
+    required String campaignId,
+    required String status,
+  }) =>
+      _request(
+        'PATCH',
+        '/v1/owner/monetization/campaigns/$campaignId/status',
+        body: {'status': status},
+      );
 
   Future<Map<String, dynamic>> startProSubscription({
     required String restaurantId,
     required bool annual,
     required String currency,
     required String countryCode,
-  }) async {
-    final data = await _request(
-      'POST',
-      '/v1/owner/monetization/subscriptions',
-      body: {
-        'restaurantId': restaurantId,
-        'planCode': annual ? 'PRO_ANNUAL' : 'PRO_MONTHLY',
-        'currency': currency,
-        'countryCode': countryCode,
-      },
-    );
-    return (data['subscription'] as Map<String, dynamic>? ?? data);
-  }
+  }) =>
+      _request(
+        'POST',
+        '/v1/owner/monetization/subscriptions',
+        body: {
+          'restaurantId': restaurantId,
+          'planCode': annual ? 'PRO_ANNUAL' : 'PRO_MONTHLY',
+          'currency': currency,
+          'countryCode': countryCode,
+        },
+      );
 
   void close() => _client.close(force: true);
 }
