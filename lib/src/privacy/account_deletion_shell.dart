@@ -139,17 +139,17 @@ class _AccountDeletionShellState extends State<AccountDeletionShell> {
     final safeTop = MediaQueryData.fromView(View.of(context)).padding.top;
     final overlayTheme = ThemeData.dark(useMaterial3: true);
 
-    return Stack(
-      children: [
-        Positioned.fill(child: widget.child),
-        Positioned(
-          top: safeTop + 8,
-          right: _direction == TextDirection.ltr ? 10 : null,
-          left: _direction == TextDirection.rtl ? 10 : null,
-          child: Theme(
-            data: overlayTheme,
-            child: Directionality(
-              textDirection: _direction,
+    return Directionality(
+      textDirection: _direction,
+      child: Stack(
+        children: [
+          Positioned.fill(child: widget.child),
+          Positioned(
+            top: safeTop + 8,
+            right: _direction == TextDirection.ltr ? 10 : null,
+            left: _direction == TextDirection.rtl ? 10 : null,
+            child: Theme(
+              data: overlayTheme,
               child: Material(
                 color: const Color(0xDD101426),
                 shape: const CircleBorder(),
@@ -162,13 +162,10 @@ class _AccountDeletionShellState extends State<AccountDeletionShell> {
               ),
             ),
           ),
-        ),
-        if (_panelOpen)
-          Positioned.fill(
-            child: Theme(
-              data: overlayTheme,
-              child: Directionality(
-                textDirection: _direction,
+          if (_panelOpen)
+            Positioned.fill(
+              child: Theme(
+                data: overlayTheme,
                 child: Material(
                   color: Colors.black54,
                   child: Padding(
@@ -233,8 +230,8 @@ class _AccountDeletionShellState extends State<AccountDeletionShell> {
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
