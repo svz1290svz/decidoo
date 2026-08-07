@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { selectChargeCampaign } from './monetization-billing.js';
+import {
+  selectChargeCampaign,
+  smartCampaignIdFromReasons,
+} from './monetization-billing.js';
 
 const now = new Date('2026-08-08T00:00:00Z');
 const campaign = (overrides: Record<string, unknown> = {}) => ({
@@ -69,4 +72,13 @@ test('boost campaigns are not charged per action', () => {
     ),
     null,
   );
+});
+
+test('smart campaign attribution is extracted only from internal reason code', () => {
+  assert.equal(
+    smartCampaignIdFromReasons(['NEARBY', 'SMART_CAMPAIGN:smart-42']),
+    'smart-42',
+  );
+  assert.equal(smartCampaignIdFromReasons(['NEARBY', 'HIGH_RATING']), null);
+  assert.equal(smartCampaignIdFromReasons(['SMART_CAMPAIGN:   ']), null);
 });
