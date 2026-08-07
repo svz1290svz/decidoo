@@ -5,6 +5,7 @@ import 'auth/auth_session_controller.dart';
 import 'auth/demo_enabled_auth_gate.dart';
 import 'localized_store_ready_production_app.dart';
 import 'management_app.dart';
+import 'privacy/account_deletion_shell.dart';
 
 class StoreReadyGate extends StatefulWidget {
   const StoreReadyGate({super.key, required this.controller});
@@ -55,6 +56,9 @@ class _StoreReadyGateState extends State<StoreReadyGate> {
       );
     }
 
-    return LocalizedStoreReadyProductionApp(controller: widget.controller);
+    return AccountDeletionShell(
+      controller: widget.controller,
+      child: LocalizedStoreReadyProductionApp(controller: widget.controller),
+    );
   }
 }
