@@ -33,7 +33,8 @@ class AppApi {
   final HttpClient _client;
   final OfflineCache _cache;
 
-  String _cacheKey(String key) => '${controller.session?.user.id ?? 'anonymous'}_$key';
+  String _cacheKey(String key) =>
+      '${controller.session?.user.id ?? 'anonymous'}_$key';
 
   Future<Map<String, dynamic>> _request(
     String method,
@@ -169,21 +170,58 @@ class AppApi {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (maxDistanceKm != null) 'maxDistanceKm': maxDistanceKm,
-      if (cuisine != null && cuisine.trim().isNotEmpty) 'cuisine': cuisine.trim(),
+      if (cuisine != null && cuisine.trim().isNotEmpty)
+        'cuisine': cuisine.trim(),
       if (mealType != null && mealType.trim().isNotEmpty)
         'mealType': mealType.trim(),
       if (mood != null && mood.trim().isNotEmpty) 'mood': mood.trim(),
       if (hungerLevel != null) 'hungerLevel': hungerLevel,
       'limit': 10,
     };
-    final cacheKey = 'recommendations_${base64Url.encode(utf8.encode(jsonEncode(requestBody)))}';
+    final cacheKey =
+        'recommendations_${base64Url.encode(utf8.encode(jsonEncode(requestBody)))}';
     final data = await _cachedRequest(
       cacheKey,
       () => _request('POST', '/v1/recommendations', body: requestBody),
       ttl: const Duration(hours: 2),
     );
+    final offline = data['_offline'] == true;
+    final sessionId = offline ? null : data['sessionId']?.toString();
     return (data['results'] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
+        .cast<Map<String, dynamic>>()
+        .map(
+          (item) => {
+            ...item,
+            if (sessionId != null) '_recommendationSessionId': sessionId,
+            '_attributionLive': !offline,
+          },
+        )
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> recordMonetizationAction({
+    required String sessionId,
+    required String restaurantId,
+    String? mealId,
+    required String action,
+  }) {
+    final idempotencyKey = [
+      sessionId,
+      restaurantId,
+      mealId ?? 'restaurant',
+      action,
+    ].join(':');
+    return _request(
+      'POST',
+      '/v1/monetization/actions',
+      body: {
+        'sessionId': sessionId,
+        'restaurantId': restaurantId,
+        if (mealId != null) 'mealId': mealId,
+        'action': action,
+        'idempotencyKey': idempotencyKey,
+      },
+    );
   }
 
   Future<List<Map<String, dynamic>>> favorites() async {
@@ -309,8 +347,10 @@ class AppApi {
     required String id,
     required String status,
   }) async {
-    await _request('PATCH', '/v1/admin/restaurants/$id/moderate', body: {
-      'status': status,
-    });
+    await _request(
+      'PATCH',
+      '/v1/admin/restaurants/$id/moderate',
+      body: {'status': status},
+    );
   }
 }
