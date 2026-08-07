@@ -26,6 +26,7 @@ class _AccountDeletionShellState extends State<AccountDeletionShell> {
   String? _error;
 
   String get _language => widget.controller.session?.user.preferredLanguage ?? 'en';
+  TextDirection get _direction => _language == 'ar' ? TextDirection.rtl : TextDirection.ltr;
 
   String _text(String key) {
     const values = <String, Map<String, String>>{
@@ -135,80 +136,96 @@ class _AccountDeletionShellState extends State<AccountDeletionShell> {
 
   @override
   Widget build(BuildContext context) {
+    final safeTop = MediaQueryData.fromView(View.of(context)).padding.top;
+    final overlayTheme = ThemeData.dark(useMaterial3: true);
+
     return Stack(
       children: [
         Positioned.fill(child: widget.child),
         Positioned(
-          top: MediaQuery.paddingOf(context).top + 8,
-          right: 10,
-          child: Material(
-            color: const Color(0xDD101426),
-            shape: const CircleBorder(),
-            elevation: 4,
-            child: IconButton(
-              tooltip: _text('privacy'),
-              onPressed: () => setState(() => _panelOpen = true),
-              icon: const Icon(Icons.privacy_tip_outlined),
+          top: safeTop + 8,
+          right: _direction == TextDirection.ltr ? 10 : null,
+          left: _direction == TextDirection.rtl ? 10 : null,
+          child: Theme(
+            data: overlayTheme,
+            child: Directionality(
+              textDirection: _direction,
+              child: Material(
+                color: const Color(0xDD101426),
+                shape: const CircleBorder(),
+                elevation: 4,
+                child: IconButton(
+                  tooltip: _text('privacy'),
+                  onPressed: () => setState(() => _panelOpen = true),
+                  icon: const Icon(Icons.privacy_tip_outlined),
+                ),
+              ),
             ),
           ),
         ),
         if (_panelOpen)
           Positioned.fill(
-            child: Material(
-              color: Colors.black54,
-              child: SafeArea(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 460),
-                    child: Card(
-                      margin: const EdgeInsets.all(24),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              _text('title'),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                              ),
+            child: Theme(
+              data: overlayTheme,
+              child: Directionality(
+                textDirection: _direction,
+                child: Material(
+                  color: Colors.black54,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, safeTop + 16, 16, 16),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: Card(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  _text('title'),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(_text('body')),
+                                if (_error != null) ...[
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _error!,
+                                    style: const TextStyle(color: Colors.redAccent),
+                                  ),
+                                ],
+                                const SizedBox(height: 20),
+                                FilledButton.icon(
+                                  onPressed: _deleting ? null : _deleteAccount,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.red.shade700,
+                                    minimumSize: const Size.fromHeight(52),
+                                  ),
+                                  icon: _deleting
+                                      ? const SizedBox.square(
+                                          dimension: 18,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.delete_forever),
+                                  label: Text(
+                                    _deleting ? _text('working') : _text('delete'),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextButton(
+                                  onPressed: _deleting
+                                      ? null
+                                      : () => setState(() => _panelOpen = false),
+                                  child: Text(_text('cancel')),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 12),
-                            Text(_text('body')),
-                            if (_error != null) ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                _error!,
-                                style: const TextStyle(color: Colors.redAccent),
-                              ),
-                            ],
-                            const SizedBox(height: 20),
-                            FilledButton.icon(
-                              onPressed: _deleting ? null : _deleteAccount,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.red.shade700,
-                                minimumSize: const Size.fromHeight(52),
-                              ),
-                              icon: _deleting
-                                  ? const SizedBox.square(
-                                      dimension: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.delete_forever),
-                              label: Text(
-                                _deleting ? _text('working') : _text('delete'),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _deleting
-                                  ? null
-                                  : () => setState(() => _panelOpen = false),
-                              child: Text(_text('cancel')),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
