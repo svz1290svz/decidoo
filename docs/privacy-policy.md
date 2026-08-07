@@ -1,40 +1,59 @@
 # Decidoo Privacy Policy
 
-**Effective date:** July 19, 2026
+**Effective date:** August 8, 2026
 
-Decidoo helps users choose what to eat. This policy describes the data practices of the Decidoo mobile application version 1.0.0.
+Decidoo helps people decide what to eat and discover restaurants. This policy describes the data practices of the production mobile application and supporting Decidoo services.
 
-## Data processed by the app
+## Data we process
 
-The current release processes meal preferences, budget selections, favorites, language choice, and decision history on the user's device to generate recommendations. The current release does not require an account and does not transmit these preferences to a Decidoo server.
+Depending on the features you use, Decidoo may process:
 
-## Data collection and sharing
+- account information such as email address, display name, preferred language and authentication/session records;
+- food preferences, budget and distance preferences, favorites, recommendation history and interaction signals used to personalize results;
+- restaurant information submitted by restaurant owners or staff;
+- device push-notification tokens and related device metadata when notifications are enabled;
+- approximate or precise location when you explicitly grant location permission, for nearby restaurant and distance-based recommendations;
+- technical diagnostics such as request identifiers, error information and security logs needed to operate and protect the service.
 
-The current release does not collect, sell, rent, or share personal data with third parties. It does not include advertising SDKs, analytics SDKs, location tracking, payment processing, or third-party account sign-in.
+Decidoo does not require location permission for the application to remain usable. Location access can be denied or revoked through device settings.
 
-## Sponsored content and purchases
+## How data is used
 
-The interface includes product concepts for Premium plans, restaurant subscriptions, and sponsored recommendations. In version 1.0.0 these are informational product surfaces only. No payment is processed and no sponsored-placement profile is transmitted.
+Data is used to provide authentication, recommendations, favorites, personalization, restaurant management, notifications, security, fraud/abuse prevention, service reliability and user-requested privacy operations.
+
+Sponsored recommendations, when enabled, must be labelled. Personalization and marketing-related processing must respect the consent choices exposed by the service.
+
+## Data sharing and service providers
+
+Decidoo may use infrastructure and service providers for hosting, databases, push notifications, maps, email delivery, diagnostics and other operational functions. These providers may process only the data necessary to provide their configured service. Decidoo does not sell personal information.
+
+The exact third-party providers enabled in a production release must be reflected in the applicable Apple App Privacy and Google Play Data Safety disclosures.
 
 ## Device permissions
 
-The current release does not request precise location, contacts, camera, microphone, photos, health, or advertising-tracking permissions.
+The application may request location and notification permissions when the related feature is used. Permission requests must be contextual and optional where the platform permits. Contacts, microphone, health and advertising-tracking permissions are not required by the current core food-decision experience.
 
-## Data retention and deletion
+## Data retention
 
-Preferences and decision history remain on the device for the duration of the app session in the current release. Uninstalling the app removes app-controlled local data. Because Decidoo does not maintain a user account or server profile in version 1.0.0, there is no remote personal-data record to delete.
+Account and personalization data is retained while an account is active or as required to provide the service. Operational and security logs may be retained for a limited period appropriate to reliability, abuse prevention and legal obligations. Business restaurant records may be retained independently of an individual staff account when necessary to preserve the restaurant listing and legitimate business records.
 
-## Children
+## Access, correction and deletion
 
-Decidoo is a general-audience food decision tool and is not directed to children under 13. The app does not knowingly collect personal data from children.
+Authenticated users can submit privacy requests through the Decidoo service. The application supports account deletion. When account deletion is confirmed, Decidoo removes the user account, active authentication/session data, personal preference/favorite records and registered push devices according to the database deletion rules, while audit records are de-identified and legitimate restaurant business records may remain without the deleted user's membership.
+
+Some records may be retained where required by law, fraud prevention, dispute resolution or other legitimate legal obligations.
 
 ## Security
 
-Decidoo minimizes data processing and does not transmit user information in version 1.0.0. Future releases that add accounts, analytics, location, ordering, or payments will update this policy and provide the required controls before those features are enabled.
+Production API traffic must use HTTPS. Authentication tokens are protected using platform secure storage where supported. Sensitive production secrets and signing credentials are kept outside the mobile application and source repository. Push tokens are encrypted at rest by the backend production configuration.
+
+## Children
+
+Decidoo is a general-audience food decision service and is not specifically directed to children. Store age-rating and child-directed declarations must match the final released functionality and target market.
 
 ## International users
 
-Decidoo is available in multiple languages. The same privacy practices described here apply globally to version 1.0.0.
+Decidoo is designed for international use. Privacy rights and required notices may vary by country or region. Decidoo will apply required user controls and disclosures for markets in which the production service is made available.
 
 ## Changes
 
@@ -42,6 +61,4 @@ Material changes to data practices will be reflected in an updated policy and, w
 
 ## Contact
 
-Privacy questions and requests can be submitted through the Decidoo repository support channel:
-
-https://github.com/svz1290svz/decidoo/issues
+A stable production privacy/support contact and HTTPS support URL must be published before public store release. Until that production contact is configured, project issues can be reported through the Decidoo repository support channel.

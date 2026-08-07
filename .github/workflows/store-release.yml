@@ -40,11 +40,15 @@ jobs:
       - run: flutter pub get
       - name: Release preflight
         run: bash tool/release_preflight.sh
-      - name: Validate tagged production configuration
+      - name: Validate production configuration
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           [[ "$PRODUCTION_API_BASE_URL" =~ ^https:// ]] || {
-            echo "::error::Repository variable PRODUCTION_API_BASE_URL must be a valid HTTPS URL for tagged releases"
+            echo "::error::PRODUCTION_API_BASE_URL must be a real HTTPS URL for tagged production releases"
+            exit 1
+          }
+          [[ "$PRODUCTION_API_BASE_URL" != *".invalid"* ]] || {
+            echo "::error::Placeholder API URLs are forbidden in production releases"
             exit 1
           }
       - name: Normalize Dart sources
@@ -53,7 +57,7 @@ jobs:
       - run: flutter test --coverage
 
   android:
-    name: Android release bundle
+    name: Android release validation
     needs: quality
     runs-on: ubuntu-latest
     steps:
@@ -70,13 +74,25 @@ jobs:
           VERSION_LINE=$(awk '/^version:/{print $2}' pubspec.yaml)
           echo "BUILD_NAME=${VERSION_LINE%%+*}" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=${VERSION_LINE##*+}" >> "$GITHUB_ENV"
-          echo "API_BASE_URL=${PRODUCTION_API_BASE_URL:-https://api.decidoo.invalid}" >> "$GITHUB_ENV"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "API_BASE_URL=$PRODUCTION_API_BASE_URL" >> "$GITHUB_ENV"
+            echo "APP_ENV=production" >> "$GITHUB_ENV"
+            echo "ALLOW_DEMO=false" >> "$GITHUB_ENV"
+            echo "ARTIFACT_NAME=decidoo-android-production" >> "$GITHUB_ENV"
+          else
+            echo "API_BASE_URL=https://api.decidoo.invalid" >> "$GITHUB_ENV"
+            echo "APP_ENV=staging" >> "$GITHUB_ENV"
+            echo "ALLOW_DEMO=true" >> "$GITHUB_ENV"
+            echo "ARTIFACT_NAME=decidoo-android-validation-demo" >> "$GITHUB_ENV"
+          fi
       - name: Build release AAB
         run: >-
           flutter build appbundle --release
           --build-name="$BUILD_NAME"
           --build-number="$BUILD_NUMBER"
           --dart-define=API_BASE_URL="$API_BASE_URL"
+          --dart-define=APP_ENV="$APP_ENV"
+          --dart-define=ALLOW_DEMO="$ALLOW_DEMO"
           --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL"
       - name: Build universal release APK
         run: >-
@@ -84,10 +100,12 @@ jobs:
           --build-name="$BUILD_NAME"
           --build-number="$BUILD_NUMBER"
           --dart-define=API_BASE_URL="$API_BASE_URL"
+          --dart-define=APP_ENV="$APP_ENV"
+          --dart-define=ALLOW_DEMO="$ALLOW_DEMO"
           --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL"
       - uses: actions/upload-artifact@v4
         with:
-          name: decidoo-android-release-candidate
+          name: ${{ env.ARTIFACT_NAME }}
           path: |
             build/app/outputs/bundle/release/app-release.aab
             build/app/outputs/flutter-apk/app-release.apk
@@ -114,7 +132,17 @@ jobs:
           VERSION_LINE=$(awk '/^version:/{print $2}' pubspec.yaml)
           echo "BUILD_NAME=${VERSION_LINE%%+*}" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=${VERSION_LINE##*+}" >> "$GITHUB_ENV"
-          echo "API_BASE_URL=${PRODUCTION_API_BASE_URL:-https://api.decidoo.invalid}" >> "$GITHUB_ENV"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "API_BASE_URL=$PRODUCTION_API_BASE_URL" >> "$GITHUB_ENV"
+            echo "APP_ENV=production" >> "$GITHUB_ENV"
+            echo "ALLOW_DEMO=false" >> "$GITHUB_ENV"
+            echo "ARTIFACT_NAME=decidoo-ios-production-unsigned" >> "$GITHUB_ENV"
+          else
+            echo "API_BASE_URL=https://api.decidoo.invalid" >> "$GITHUB_ENV"
+            echo "APP_ENV=staging" >> "$GITHUB_ENV"
+            echo "ALLOW_DEMO=true" >> "$GITHUB_ENV"
+            echo "ARTIFACT_NAME=decidoo-ios-validation-demo" >> "$GITHUB_ENV"
+          fi
       - name: Build iOS release without signing
         run: |
           set -o pipefail
@@ -122,6 +150,8 @@ jobs:
             --build-name="$BUILD_NAME" \
             --build-number="$BUILD_NUMBER" \
             --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=APP_ENV="$APP_ENV" \
+            --dart-define=ALLOW_DEMO="$ALLOW_DEMO" \
             --dart-define=ERROR_REPORT_URL="$ERROR_REPORT_URL" \
             2>&1 | tee ios-build.log
       - name: Upload iOS build diagnostics
@@ -135,6 +165,6 @@ jobs:
         run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app decidoo-ios-unsigned.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: decidoo-ios-unsigned-release-candidate
+          name: ${{ env.ARTIFACT_NAME }}
           path: decidoo-ios-unsigned.zip
           retention-days: 14

@@ -14,6 +14,10 @@ type DataRequestBody = {
   note?: string;
 };
 
+type DeleteAccountBody = {
+  confirmation?: string;
+};
+
 const consentTypes = new Set<ConsentType>(Object.values(ConsentType));
 const dataRequestTypes = new Set<DataRequestType>(Object.values(DataRequestType));
 
@@ -120,5 +124,43 @@ export const registerComplianceRoutes = async (app: FastifyInstance): Promise<vo
     } catch {
       return reply.code(401).send({ error: 'Unauthorized' });
     }
+  });
+
+  app.delete<{ Body: DeleteAccountBody }>('/v1/me/account', async (request, reply) => {
+    let userId: string;
+    try {
+      userId = userIdFromRequest(request);
+    } catch {
+      return reply.code(401).send({ error: 'AUTH_REQUIRED' });
+    }
+
+    if (request.body?.confirmation !== 'DELETE') {
+      return reply.code(400).send({ error: 'DELETION_CONFIRMATION_REQUIRED' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (!user) {
+      return reply.code(204).send();
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // PushDevice and AuditEvent intentionally have no FK to User so that
+      // notification delivery and immutable audit history cannot block deletion.
+      // Remove/anonymize the personal identifier explicitly before deleting User.
+      await tx.pushDevice.deleteMany({ where: { userId } });
+      await tx.auditEvent.updateMany({
+        where: { actorUserId: userId },
+        data: { actorUserId: null },
+      });
+
+      // User-owned personal rows use ON DELETE CASCADE/SET NULL in Prisma.
+      // Business restaurant records remain intact while memberships are removed.
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    return reply.code(204).send();
   });
 };
