@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'auth/auth_session_controller.dart';
 import 'services/app_api.dart';
 import 'services/management_api.dart';
+import 'widgets/monetization_hub.dart';
 import 'widgets/operating_hours_editor.dart';
 
 class ManagementApp extends StatefulWidget {
@@ -39,17 +40,23 @@ class _ManagementAppState extends State<ManagementApp> {
           brightness: Brightness.dark,
         ),
         cardTheme: CardThemeData(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
         ),
       ),
       home: Scaffold(
         appBar: AppBar(
           title: Text(widget.isAdmin ? 'Decidoo Admin' : 'Restoran Yönetimi'),
           actions: [
-            IconButton(
-              tooltip: 'Çıkış yap',
-              onPressed: widget.controller.logout,
-              icon: const Icon(Icons.logout),
+            Semantics(
+              label: 'Çıkış yap',
+              button: true,
+              child: IconButton(
+                tooltip: 'Çıkış yap',
+                onPressed: widget.controller.logout,
+                icon: const Icon(Icons.logout),
+              ),
             ),
           ],
         ),
@@ -84,11 +91,6 @@ class _AdminPanelState extends State<_AdminPanel> {
     await Future.wait([_dashboard, _restaurants]);
   }
 
-  Future<void> _moderate(String id, String status) async {
-    await widget.api.moderateRestaurant(id, status);
-    await _reload();
-  }
-
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -104,9 +106,7 @@ class _AdminPanelState extends State<_AdminPanel> {
           FutureBuilder<Map<String, dynamic>>(
             future: _dashboard,
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const _LoadingCard();
-              }
+              if (!snapshot.hasData) return const _LoadingCard();
               final data = snapshot.data!;
               final totals = data['totals'] as Map<String, dynamic>? ?? const {};
               final growth = data['growth30d'] as Map<String, dynamic>? ?? const {};
@@ -140,11 +140,13 @@ class _AdminPanelState extends State<_AdminPanel> {
                     crossAxisSpacing: 12,
                     childAspectRatio: columns == 1 ? 3.1 : 1.7,
                     children: metrics
-                        .map((metric) => _MetricCard(
-                              label: metric.$1,
-                              value: metric.$2,
-                              icon: metric.$3,
-                            ))
+                        .map(
+                          (metric) => _MetricCard(
+                            label: metric.$1,
+                            value: metric.$2,
+                            icon: metric.$3,
+                          ),
+                        )
                         .toList(),
                   );
                 },
@@ -177,22 +179,33 @@ class _AdminPanelState extends State<_AdminPanel> {
                         children: [
                           Text(
                             restaurant['name']?.toString() ?? 'Restoran',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const SizedBox(height: 6),
-                          Text('${restaurant['city'] ?? ''} · ${restaurant['addressLine'] ?? ''}'),
+                          Text(
+                            '${restaurant['city'] ?? ''} · ${restaurant['addressLine'] ?? ''}',
+                          ),
                           const SizedBox(height: 14),
                           Wrap(
                             spacing: 10,
                             runSpacing: 10,
                             children: [
                               FilledButton.icon(
-                                onPressed: () => _moderate(id, 'ACTIVE'),
+                                onPressed: () async {
+                                  await widget.api.moderateRestaurant(id, 'ACTIVE');
+                                  await _reload();
+                                },
                                 icon: const Icon(Icons.check),
                                 label: const Text('ONAYLA'),
                               ),
                               OutlinedButton.icon(
-                                onPressed: () => _moderate(id, 'REJECTED'),
+                                onPressed: () async {
+                                  await widget.api.moderateRestaurant(id, 'REJECTED');
+                                  await _reload();
+                                },
                                 icon: const Icon(Icons.close),
                                 label: const Text('REDDET'),
                               ),
@@ -222,7 +235,8 @@ class _OwnerPanel extends StatefulWidget {
 }
 
 class _OwnerPanelState extends State<_OwnerPanel> {
-  late Future<List<Map<String, dynamic>>> _future = widget.api.ownerRestaurants();
+  late Future<List<Map<String, dynamic>>> _future =
+      widget.api.ownerRestaurants();
 
   void _reload() => setState(() => _future = widget.api.ownerRestaurants());
 
@@ -238,17 +252,31 @@ class _OwnerPanelState extends State<_OwnerPanel> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'Restoran adı')),
-              TextField(controller: address, decoration: const InputDecoration(labelText: 'Adres')),
-              TextField(controller: city, decoration: const InputDecoration(labelText: 'Şehir')),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Restoran adı'),
+              ),
+              TextField(
+                controller: address,
+                decoration: const InputDecoration(labelText: 'Adres'),
+              ),
+              TextField(
+                controller: city,
+                decoration: const InputDecoration(labelText: 'Şehir'),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('İptal'),
+          ),
           FilledButton(
             onPressed: () async {
-              if (name.text.trim().length < 2 || address.text.trim().isEmpty) return;
+              if (name.text.trim().length < 2 || address.text.trim().isEmpty) {
+                return;
+              }
               await widget.appApi.createRestaurant(
                 name: name.text.trim(),
                 addressLine: address.text.trim(),
@@ -275,13 +303,22 @@ class _OwnerPanelState extends State<_OwnerPanel> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Menü kategorisi ekle'),
-        content: TextField(controller: name, decoration: const InputDecoration(labelText: 'Kategori adı')),
+        content: TextField(
+          controller: name,
+          decoration: const InputDecoration(labelText: 'Kategori adı'),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('İptal'),
+          ),
           FilledButton(
             onPressed: () async {
               if (name.text.trim().isEmpty) return;
-              await widget.api.createCategory(restaurantId: restaurantId, name: name.text.trim());
+              await widget.api.createCategory(
+                restaurantId: restaurantId,
+                name: name.text.trim(),
+              );
               if (context.mounted) Navigator.pop(context, true);
             },
             child: const Text('Ekle'),
@@ -300,8 +337,8 @@ class _OwnerPanelState extends State<_OwnerPanel> {
   ) async {
     final name = TextEditingController();
     final price = TextEditingController();
-    final imageUrl = TextEditingController();
-    String? categoryId = categories.isEmpty ? null : categories.first['id']?.toString();
+    String? categoryId =
+        categories.isEmpty ? null : categories.first['id']?.toString();
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -311,41 +348,54 @@ class _OwnerPanelState extends State<_OwnerPanel> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: name, decoration: const InputDecoration(labelText: 'Yemek adı')),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Yemek adı'),
+                ),
                 TextField(
                   controller: price,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(labelText: 'Fiyat ($currency)'),
                 ),
-                TextField(controller: imageUrl, decoration: const InputDecoration(labelText: 'Fotoğraf URL')),
                 if (categories.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: categoryId,
                     decoration: const InputDecoration(labelText: 'Kategori'),
                     items: categories
-                        .map((item) => DropdownMenuItem(
-                              value: item['id'].toString(),
-                              child: Text(item['name']?.toString() ?? 'Kategori'),
-                            ))
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item['id'].toString(),
+                            child: Text(item['name']?.toString() ?? 'Kategori'),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (value) => setDialogState(() => categoryId = value),
+                    onChanged: (value) =>
+                        setDialogState(() => categoryId = value),
                   ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('İptal'),
+            ),
             FilledButton(
               onPressed: () async {
-                final parsedPrice = double.tryParse(price.text.replaceAll(',', '.'));
-                if (name.text.trim().length < 2 || parsedPrice == null || parsedPrice <= 0) return;
+                final parsed =
+                    double.tryParse(price.text.replaceAll(',', '.'));
+                if (name.text.trim().length < 2 ||
+                    parsed == null ||
+                    parsed <= 0) {
+                  return;
+                }
                 await widget.api.createMeal(
                   restaurantId: restaurantId,
                   categoryId: categoryId,
                   name: name.text.trim(),
-                  price: parsedPrice,
+                  price: parsed,
                   currency: currency,
-                  imageUrl: imageUrl.text.trim(),
                 );
                 if (context.mounted) Navigator.pop(context, true);
               },
@@ -357,7 +407,6 @@ class _OwnerPanelState extends State<_OwnerPanel> {
     );
     name.dispose();
     price.dispose();
-    imageUrl.dispose();
     if (saved == true && mounted) _reload();
   }
 
@@ -374,6 +423,23 @@ class _OwnerPanelState extends State<_OwnerPanel> {
       ),
     );
     if (saved == true && mounted) _reload();
+  }
+
+  void _openMonetization(
+    String restaurantId,
+    String currency,
+    String countryCode,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MonetizationHub(
+          api: widget.api,
+          restaurantId: restaurantId,
+          currency: currency,
+          countryCode: countryCode,
+        ),
+      ),
+    );
   }
 
   @override
@@ -397,14 +463,19 @@ class _OwnerPanelState extends State<_OwnerPanel> {
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const _LoadingCard();
               final items = snapshot.data!;
-              if (items.isEmpty) return const _MessageCard('Henüz restoran eklenmemiş.');
+              if (items.isEmpty) {
+                return const _MessageCard('Henüz restoran eklenmemiş.');
+              }
               return Column(
                 children: items.map((restaurant) {
                   final id = restaurant['id'].toString();
                   final status = restaurant['status']?.toString() ?? 'DRAFT';
                   final currency = restaurant['currency']?.toString() ?? 'TRY';
-                  final categories = (restaurant['categories'] as List? ?? const [])
-                      .cast<Map<String, dynamic>>();
+                  final countryCode =
+                      restaurant['countryCode']?.toString() ?? 'TR';
+                  final categories =
+                      (restaurant['categories'] as List? ?? const [])
+                          .cast<Map<String, dynamic>>();
                   final meals = (restaurant['meals'] as List? ?? const [])
                       .cast<Map<String, dynamic>>();
                   final operatingHours =
@@ -413,26 +484,39 @@ class _OwnerPanelState extends State<_OwnerPanel> {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 16),
                     child: ExpansionTile(
-                      title: Text(restaurant['name']?.toString() ?? 'Restoran'),
-                      subtitle: Text('Durum: $status · ${meals.length} yemek'),
-                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      title: Text(
+                        restaurant['name']?.toString() ?? 'Restoran',
+                      ),
+                      subtitle: Text(
+                        'Durum: $status · ${meals.length} yemek · $currency',
+                      ),
+                      childrenPadding:
+                          const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       children: [
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  _openMonetization(id, currency, countryCode),
+                              icon: const Icon(Icons.payments_outlined),
+                              label: const Text('GELİR MERKEZİ'),
+                            ),
                             OutlinedButton.icon(
                               onPressed: () => _showCategoryDialog(id),
                               icon: const Icon(Icons.category_outlined),
                               label: const Text('Kategori ekle'),
                             ),
-                            FilledButton.icon(
-                              onPressed: () => _showMealDialog(id, categories, currency),
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  _showMealDialog(id, categories, currency),
                               icon: const Icon(Icons.add),
                               label: const Text('Yemek ekle'),
                             ),
                             OutlinedButton.icon(
-                              onPressed: () => _showOperatingHours(id, operatingHours),
+                              onPressed: () =>
+                                  _showOperatingHours(id, operatingHours),
                               icon: const Icon(Icons.schedule_outlined),
                               label: const Text('Çalışma saatleri'),
                             ),
@@ -452,23 +536,37 @@ class _OwnerPanelState extends State<_OwnerPanel> {
                             alignment: Alignment.centerLeft,
                             child: Wrap(
                               spacing: 6,
+                              runSpacing: 6,
                               children: categories
-                                  .map((category) => Chip(label: Text(category['name']?.toString() ?? 'Kategori')))
+                                  .map(
+                                    (category) => Chip(
+                                      label: Text(
+                                        category['name']?.toString() ??
+                                            'Kategori',
+                                      ),
+                                    ),
+                                  )
                                   .toList(),
                             ),
                           ),
                         if (meals.isEmpty)
-                          const _MessageCard('Bu restoranda henüz yemek yok.')
+                          const _MessageCard(
+                            'Bu restoranda henüz yemek yok.',
+                          )
                         else
                           ...meals.map((meal) {
                             final available = meal['isAvailable'] == true;
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: meal['imageUrl'] == null
-                                  ? const CircleAvatar(child: Icon(Icons.restaurant))
-                                  : CircleAvatar(backgroundImage: NetworkImage(meal['imageUrl'].toString())),
-                              title: Text(meal['name']?.toString() ?? 'Yemek'),
-                              subtitle: Text('${meal['price'] ?? '-'} $currency'),
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.restaurant),
+                              ),
+                              title: Text(
+                                meal['name']?.toString() ?? 'Yemek',
+                              ),
+                              subtitle: Text(
+                                '${meal['price'] ?? '-'} $currency',
+                              ),
                               trailing: Switch(
                                 value: available,
                                 onChanged: (value) async {
@@ -495,7 +593,12 @@ class _OwnerPanelState extends State<_OwnerPanel> {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.label, required this.value, required this.icon});
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
   final String label;
   final String value;
   final IconData icon;
@@ -513,8 +616,19 @@ class _MetricCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-                    Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -526,6 +640,7 @@ class _MetricCard extends StatelessWidget {
 
 class _LoadingCard extends StatelessWidget {
   const _LoadingCard();
+
   @override
   Widget build(BuildContext context) => const Card(
         child: Padding(
@@ -538,6 +653,7 @@ class _LoadingCard extends StatelessWidget {
 class _MessageCard extends StatelessWidget {
   const _MessageCard(this.message);
   final String message;
+
   @override
   Widget build(BuildContext context) => Card(
         child: Padding(
