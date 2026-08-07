@@ -154,10 +154,13 @@ class _AccountDeletionShellState extends State<AccountDeletionShell> {
                 color: const Color(0xDD101426),
                 shape: const CircleBorder(),
                 elevation: 4,
-                child: IconButton(
-                  tooltip: _text('privacy'),
-                  onPressed: () => setState(() => _panelOpen = true),
-                  icon: const Icon(Icons.privacy_tip_outlined),
+                child: Semantics(
+                  label: _text('privacy'),
+                  button: true,
+                  child: IconButton(
+                    onPressed: () => setState(() => _panelOpen = true),
+                    icon: const Icon(Icons.privacy_tip_outlined),
+                  ),
                 ),
               ),
             ),
