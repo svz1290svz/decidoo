@@ -58,6 +58,7 @@ CREATE TABLE "BillableAction" (
   CONSTRAINT "BillableAction_recommendationLogId_fkey" FOREIGN KEY ("recommendationLogId") REFERENCES "RecommendationLog"("id") ON DELETE CASCADE
 );
 CREATE INDEX "BillableAction_restaurantId_createdAt_idx" ON "BillableAction"("restaurantId","createdAt");
+CREATE UNIQUE INDEX "BillableAction_recommendationLogId_action_key" ON "BillableAction"("recommendationLogId","action");
 
 CREATE TABLE "BillingLedger" (
   "id" TEXT PRIMARY KEY,
