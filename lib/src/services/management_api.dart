@@ -151,5 +151,73 @@ class ManagementApi {
     );
   }
 
+  Future<List<Map<String, dynamic>>> monetizationCampaigns(
+    String restaurantId,
+  ) async {
+    final data = await _request(
+      'GET',
+      '/v1/owner/monetization/campaigns/$restaurantId',
+    );
+    return (data['campaigns'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> monetizationRoi(String restaurantId) =>
+      _request('GET', '/v1/owner/monetization/roi/$restaurantId');
+
+  Future<Map<String, dynamic>> createMonetizationCampaign({
+    required String restaurantId,
+    required String name,
+    required String channel,
+    required double budget,
+    required String currency,
+    required String countryCode,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    double? targetRadiusKm,
+    List<String> targetMealTypes = const [],
+    List<String> targetCuisines = const [],
+    double? bidPerAction,
+  }) async {
+    final data = await _request(
+      'POST',
+      '/v1/owner/monetization/campaigns',
+      body: {
+        'restaurantId': restaurantId,
+        'name': name,
+        'channel': channel,
+        'budget': budget,
+        'currency': currency,
+        'countryCode': countryCode,
+        'startsAt': startsAt.toUtc().toIso8601String(),
+        'endsAt': endsAt.toUtc().toIso8601String(),
+        if (targetRadiusKm != null) 'targetRadiusKm': targetRadiusKm,
+        'targetMealTypes': targetMealTypes,
+        'targetCuisines': targetCuisines,
+        if (bidPerAction != null) 'bidPerAction': bidPerAction,
+      },
+    );
+    return (data['campaign'] as Map<String, dynamic>? ?? data);
+  }
+
+  Future<Map<String, dynamic>> startProSubscription({
+    required String restaurantId,
+    required bool annual,
+    required String currency,
+    required String countryCode,
+  }) async {
+    final data = await _request(
+      'POST',
+      '/v1/owner/monetization/subscriptions',
+      body: {
+        'restaurantId': restaurantId,
+        'planCode': annual ? 'PRO_ANNUAL' : 'PRO_MONTHLY',
+        'currency': currency,
+        'countryCode': countryCode,
+      },
+    );
+    return (data['subscription'] as Map<String, dynamic>? ?? data);
+  }
+
   void close() => _client.close(force: true);
 }
