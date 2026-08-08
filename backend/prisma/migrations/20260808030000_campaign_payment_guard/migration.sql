@@ -2,6 +2,10 @@
 -- unless a matching paid funding transaction exists for that exact campaign.
 -- PER_ACTION is intentionally postpaid and is therefore exempt.
 
+CREATE UNIQUE INDEX IF NOT EXISTS "PaymentTransaction_provider_externalPaymentId_key"
+ON "PaymentTransaction"("provider", "externalPaymentId")
+WHERE "externalPaymentId" IS NOT NULL;
+
 CREATE OR REPLACE FUNCTION "decidoo_guard_campaign_activation"()
 RETURNS trigger
 LANGUAGE plpgsql
