@@ -17,7 +17,8 @@ test('prepaid campaign activation requires the exact paid campaign reference', (
   assert.match(sql, /p\."currency" = NEW\."currency"/);
 });
 
-test('guard executes before campaign status becomes active', () => {
-  assert.match(sql, /BEFORE UPDATE OF "status"/);
+test('guard blocks both direct inserts and later status activation', () => {
+  assert.match(sql, /TG_OP = 'INSERT'/);
+  assert.match(sql, /BEFORE INSERT OR UPDATE OF "status"/);
   assert.match(sql, /RAISE EXCEPTION 'PAID_CAMPAIGN_FUNDING_REQUIRED'/);
 });
