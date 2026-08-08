@@ -14,13 +14,24 @@ const envSchema = z
     PAYMENT_CONFIRMATION_SECRET: z.string().min(32).optional(),
   })
   .superRefine((value, context) => {
-    if (value.NODE_ENV === 'production' && !value.PUSH_TOKEN_ENCRYPTION_KEY) {
+    if (value.NODE_ENV !== 'production') return;
+
+    if (!value.PUSH_TOKEN_ENCRYPTION_KEY) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['PUSH_TOKEN_ENCRYPTION_KEY'],
         message: 'A 32-byte hex encryption key is required in production.',
       });
     }
+
+    if (!value.PAYMENT_CONFIRMATION_SECRET) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['PAYMENT_CONFIRMATION_SECRET'],
+        message: 'A payment confirmation secret is required in production.',
+      });
+    }
   });
 
-export const env = envSchema.parse(process.env);
+export const parseEnv = (input: NodeJS.ProcessEnv) => envSchema.parse(input);
+export const env = parseEnv(process.env);
