@@ -9,7 +9,7 @@ AS $$
 BEGIN
   IF NEW."status" = 'ACTIVE'::"CampaignStatus"
      AND NEW."channel" <> 'PER_ACTION'::"MonetizationChannel"
-     AND (OLD."status" IS DISTINCT FROM NEW."status") THEN
+     AND (TG_OP = 'INSERT' OR OLD."status" IS DISTINCT FROM NEW."status") THEN
     IF NOT EXISTS (
       SELECT 1
       FROM "PaymentTransaction" p
@@ -31,6 +31,6 @@ $$;
 DROP TRIGGER IF EXISTS "MonetizationCampaign_payment_guard" ON "MonetizationCampaign";
 
 CREATE TRIGGER "MonetizationCampaign_payment_guard"
-BEFORE UPDATE OF "status" ON "MonetizationCampaign"
+BEFORE INSERT OR UPDATE OF "status" ON "MonetizationCampaign"
 FOR EACH ROW
 EXECUTE FUNCTION "decidoo_guard_campaign_activation"();
