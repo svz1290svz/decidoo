@@ -22,3 +22,12 @@ test('guard blocks both direct inserts and later status activation', () => {
   assert.match(sql, /BEFORE INSERT OR UPDATE OF "status"/);
   assert.match(sql, /RAISE EXCEPTION 'PAID_CAMPAIGN_FUNDING_REQUIRED'/);
 });
+
+test('one external payment cannot be replayed across multiple transactions', () => {
+  assert.match(
+    sql,
+    /UNIQUE INDEX IF NOT EXISTS "PaymentTransaction_provider_externalPaymentId_key"/,
+  );
+  assert.match(sql, /"provider", "externalPaymentId"/);
+  assert.match(sql, /WHERE "externalPaymentId" IS NOT NULL/);
+});
