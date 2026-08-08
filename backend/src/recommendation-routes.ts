@@ -61,6 +61,16 @@ export const distanceKm = (
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
+const targetListMatches = (
+  targets: string[],
+  value: string | null,
+): boolean =>
+  targets.length === 0 ||
+  (value !== null &&
+    targets.some(
+      (target) => target.trim().toLowerCase() === value.trim().toLowerCase(),
+    ));
+
 export const registerRecommendationRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
@@ -119,6 +129,7 @@ export const registerRecommendationRoutes = async (
         parsed.data.glutenFree ?? preference?.glutenFree ?? false,
     };
     const profile = buildPersonalizationProfile(preference, positiveSignals);
+    const now = new Date();
 
     const candidates = await prisma.meal.findMany({
       where: {
@@ -168,6 +179,23 @@ export const registerRecommendationRoutes = async (
               take: 1,
               select: { id: true },
             },
+            monetizationCampaigns: {
+              where: {
+                status: 'ACTIVE',
+                channel: 'SMART_CAMPAIGN',
+                startsAt: { lte: now },
+                endsAt: { gte: now },
+                remainingBudget: { gt: 0 },
+              },
+              orderBy: { bidPerAction: 'desc' },
+              take: 5,
+              select: {
+                id: true,
+                targetRadiusKm: true,
+                targetMealTypes: true,
+                targetCuisines: true,
+              },
+            },
           },
         },
       },
@@ -183,8 +211,6 @@ export const registerRecommendationRoutes = async (
           1,
         );
         const verifiedBonus = meal.restaurant.isVerified ? 0.3 : 0;
-        const sponsored = meal.restaurant.boosts.length > 0;
-        const sponsoredBonus = sponsored ? 0.12 : 0;
         const distance =
           effective.latitude !== undefined &&
           effective.longitude !== undefined
@@ -195,6 +221,26 @@ export const registerRecommendationRoutes = async (
                 Number(meal.restaurant.longitude),
               )
             : null;
+
+        const smartCampaign = meal.restaurant.monetizationCampaigns.find(
+          (campaign) => {
+            if (
+              !targetListMatches(campaign.targetCuisines, meal.cuisine) ||
+              !targetListMatches(campaign.targetMealTypes, meal.mealType)
+            ) {
+              return false;
+            }
+            if (campaign.targetRadiusKm !== null) {
+              if (distance === null) return false;
+              if (distance > Number(campaign.targetRadiusKm)) return false;
+            }
+            return true;
+          },
+        );
+
+        const legacyBoost = meal.restaurant.boosts[0]?.id ?? null;
+        const sponsored = legacyBoost !== null || smartCampaign !== undefined;
+        const sponsoredBonus = sponsored ? 0.12 : 0;
         const proximityBonus =
           distance === null ? 0 : Math.max(0, 1 - distance / 25) * 0.65;
         const budgetFitBonus = effective.maxBudget
@@ -219,6 +265,7 @@ export const registerRecommendationRoutes = async (
           distance !== null && distance <= 5 ? 'NEARBY' : null,
           meal.restaurant.isVerified ? 'VERIFIED_RESTAURANT' : null,
           rating >= 4 ? 'HIGH_RATING' : null,
+          smartCampaign ? `SMART_CAMPAIGN:${smartCampaign.id}` : null,
           ...personal.reasons,
         ].filter((value): value is string => Boolean(value));
 
@@ -227,7 +274,7 @@ export const registerRecommendationRoutes = async (
           distanceKm:
             distance === null ? null : Math.round(distance * 10) / 10,
           isSponsored: sponsored,
-          boostId: meal.restaurant.boosts[0]?.id ?? null,
+          boostId: legacyBoost,
           disclosure: sponsored
             ? 'Sponsored placement influenced ranking within a strict limit.'
             : null,
@@ -292,7 +339,7 @@ export const registerRecommendationRoutes = async (
           rank: item.rank,
           reasonCodes: item.reasons,
           explanation: item.disclosure,
-          algorithmVersion: 'hybrid-v3-personalized',
+          algorithmVersion: 'hybrid-v4-commercially-safe',
           isSponsored: item.isSponsored,
           boostId: item.boostId,
         })),
@@ -301,13 +348,18 @@ export const registerRecommendationRoutes = async (
 
     return {
       sessionId: session.id,
-      algorithmVersion: 'hybrid-v3-personalized',
+      algorithmVersion: 'hybrid-v4-commercially-safe',
       personalized: Boolean(
         userId && (preference || positiveSignals.length > 0),
       ),
       sponsoredPolicy:
-        'Sponsored results receive a small capped bonus and are always disclosed.',
-      results: ranked.map(({ boostId: _boostId, ...item }) => item),
+        'Sponsored results receive a small capped bonus, require targeting eligibility and are always disclosed.',
+      results: ranked.map(({ boostId: _boostId, reasons, ...item }) => ({
+        ...item,
+        reasons: reasons.filter(
+          (reason) => !reason.startsWith('SMART_CAMPAIGN:'),
+        ),
+      })),
     };
   });
 };

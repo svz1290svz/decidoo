@@ -11,6 +11,7 @@ const envSchema = z
     ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(15),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
     PUSH_TOKEN_ENCRYPTION_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/).optional(),
+    PAYMENT_CONFIRMATION_SECRET: z.string().min(32).optional(),
   })
   .superRefine((value, context) => {
     if (value.NODE_ENV === 'production' && !value.PUSH_TOKEN_ENCRYPTION_KEY) {
