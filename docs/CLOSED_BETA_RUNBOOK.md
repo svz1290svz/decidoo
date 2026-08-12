@@ -5,7 +5,7 @@ Run the real Decidoo mobile application against a real HTTPS production-like API
 
 ## Required external inputs
 - A Linux host or managed container service with Docker support
-- A real HTTPS API hostname, e.g. `api.example.com`
+- A real HTTPS API hostname under a domain you control
 - DNS + TLS termination/reverse proxy
 - Production PostgreSQL credentials or the bundled beta PostgreSQL container
 - Strong JWT access/refresh secrets
@@ -19,7 +19,7 @@ Run the real Decidoo mobile application against a real HTTPS production-like API
 2. Provide secrets through the host secret manager or an untracked environment file.
 3. Start with `docker compose -f deploy/docker-compose.beta.yml up -d --build`.
 4. Put an HTTPS reverse proxy or cloud load balancer in front of `127.0.0.1:8080`.
-5. Run `API_BASE_URL=https://your-api-host bash tool/beta_smoke_test.sh`.
+5. Run `API_BASE_URL=https://<your-api-host> bash tool/beta_smoke_test.sh`.
 6. Confirm database backups before adding beta users.
 
 The backend container applies Prisma migrations before starting the API.
