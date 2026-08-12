@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: decidoo
+      POSTGRES_USER: decidoo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - decidoo_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U decidoo -d decidoo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [decidoo]
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://decidoo:${POSTGRES_PASSWORD}@db:5432/decidoo?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      PUSH_TOKEN_ENCRYPTION_KEY: ${PUSH_TOKEN_ENCRYPTION_KEY}
+      PAYMENT_CONFIRMATION_SECRET: ${PAYMENT_CONFIRMATION_SECRET}
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [decidoo]
+
+volumes:
+  decidoo_db:
+
+networks:
+  decidoo:
+    driver: bridge

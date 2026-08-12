@@ -126,7 +126,10 @@ class _AccountDeletionShellState extends State<AccountDeletionShell> {
       if (response.statusCode == HttpStatus.noContent) return;
       if (response.statusCode == HttpStatus.unauthorized && !refreshed) {
         final didRefresh = await widget.controller.refreshSession();
-        if (didRefresh) return _sendDelete(refreshed: true);
+        if (didRefresh) {
+          await _sendDelete(refreshed: true);
+          return;
+        }
       }
       throw HttpException('Account deletion failed: ${response.statusCode}');
     } finally {

@@ -1,0 +1,36 @@
+name: Closed Beta Readiness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "tool/beta_smoke_test.sh"
+      - "backend/.env.example"
+      - ".github/workflows/closed-beta-readiness.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate smoke-test shell syntax
+        run: bash -n tool/beta_smoke_test.sh
+      - name: Validate beta compose configuration
+        env:
+          POSTGRES_PASSWORD: beta-test-password
+          JWT_ACCESS_SECRET: 01234567890123456789012345678901
+          JWT_REFRESH_SECRET: 98765432109876543210987654321098
+          CORS_ORIGINS: https://beta.decidoo.example
+          PUSH_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          PAYMENT_CONFIRMATION_SECRET: abcdefghijklmnopqrstuvwxyz123456
+        run: docker compose -f deploy/docker-compose.beta.yml config --quiet
+      - name: Verify production variables are documented
+        run: |
+          grep -q '^PAYMENT_CONFIRMATION_SECRET=' backend/.env.example
+          grep -q '^PUSH_TOKEN_ENCRYPTION_KEY=' backend/.env.example
+          grep -q '^DATABASE_URL=' backend/.env.example
