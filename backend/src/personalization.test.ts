@@ -31,6 +31,14 @@ const positiveSignal = {
   },
 };
 
+const negativeSignal = {
+  meal: {
+    cuisine: 'Italian',
+    mealType: 'Dinner',
+    tags: ['creamy'],
+  },
+};
+
 test('explicit and learned preferences increase score', () => {
   const profile = buildPersonalizationProfile(preference, [
     positiveSignal,
@@ -68,4 +76,23 @@ test('disliked ingredient excludes a meal', () => {
 
   assert.equal(result.excluded, true);
   assert.equal(result.score, 0);
+});
+
+test('negative behavior lowers similar recommendations', () => {
+  const neutral = buildPersonalizationProfile(null, [], []);
+  const negative = buildPersonalizationProfile(null, [], [
+    negativeSignal,
+    negativeSignal,
+    negativeSignal,
+  ]);
+  const meal = {
+    cuisine: 'Italian',
+    mealType: 'Dinner',
+    tags: ['creamy'],
+    ingredients: ['pasta'],
+  };
+  const neutralScore = personalizationScore(meal, neutral);
+  const negativeScore = personalizationScore(meal, negative);
+  assert.ok(negativeScore.score < neutralScore.score);
+  assert.ok(negativeScore.reasons.includes('NEGATIVE_HISTORY_PENALTY'));
 });
