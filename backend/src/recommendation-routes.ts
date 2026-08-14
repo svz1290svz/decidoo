@@ -4,6 +4,13 @@ import { z } from 'zod';
 import { verifyAccessToken } from './auth.js';
 import { prisma } from './db.js';
 import {
+  confidenceV5,
+  contextScoreV5,
+  diversifyV5,
+  freshnessScoreV5,
+  isOpenAt,
+} from './decision-engine-v5.js';
+import {
   buildPersonalizationProfile,
   personalizationScore,
 } from './personalization.js';
@@ -23,6 +30,7 @@ const requestSchema = z
     vegan: z.boolean().optional(),
     halalOnly: z.boolean().optional(),
     glutenFree: z.boolean().optional(),
+    timezone: z.string().trim().min(1).max(80).optional(),
     limit: z.coerce.number().int().min(1).max(20).default(10),
   })
   .refine(
@@ -61,15 +69,26 @@ export const distanceKm = (
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-const targetListMatches = (
-  targets: string[],
-  value: string | null,
-): boolean =>
+const targetListMatches = (targets: string[], value: string | null): boolean =>
   targets.length === 0 ||
   (value !== null &&
     targets.some(
       (target) => target.trim().toLowerCase() === value.trim().toLowerCase(),
     ));
+
+const inferredMealType = (now: Date, timezone: string): string => {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(now),
+  );
+  if (hour >= 5 && hour < 11) return 'Breakfast';
+  if (hour >= 11 && hour < 15) return 'Lunch';
+  if (hour >= 15 && hour < 22) return 'Dinner';
+  return 'Late Night';
+};
 
 export const registerRecommendationRoutes = async (
   app: FastifyInstance,
@@ -83,70 +102,115 @@ export const registerRecommendationRoutes = async (
     }
 
     const userId = optionalUserId(request);
-    const [preference, positiveSignals] = userId
-      ? await Promise.all([
-          prisma.userPreference.findUnique({ where: { userId } }),
-          prisma.recommendationLog.findMany({
-            where: {
-              userId,
-              action: {
-                in: [
-                  RecommendationAction.LIKED,
-                  RecommendationAction.SAVED,
-                  RecommendationAction.ORDER_CLICKED,
-                ],
+    const now = new Date();
+    const since = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    const [preference, user, positiveSignals, negativeSignals, recentChoices] =
+      userId
+        ? await Promise.all([
+            prisma.userPreference.findUnique({ where: { userId } }),
+            prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
+            prisma.recommendationLog.findMany({
+              where: {
+                userId,
+                action: {
+                  in: [
+                    RecommendationAction.LIKED,
+                    RecommendationAction.SAVED,
+                    RecommendationAction.ORDER_CLICKED,
+                    RecommendationAction.NAVIGATION_STARTED,
+                  ],
+                },
+                mealId: { not: null },
               },
-              mealId: { not: null },
-            },
-            orderBy: { actionAt: 'desc' },
-            take: 100,
-            select: {
-              meal: {
-                select: { cuisine: true, mealType: true, tags: true },
+              orderBy: { actionAt: 'desc' },
+              take: 100,
+              select: {
+                meal: { select: { cuisine: true, mealType: true, tags: true } },
               },
-            },
-          }),
-        ])
-      : [null, []];
+            }),
+            prisma.recommendationLog.findMany({
+              where: {
+                userId,
+                action: RecommendationAction.DISLIKED,
+                mealId: { not: null },
+              },
+              orderBy: { actionAt: 'desc' },
+              take: 100,
+              select: {
+                meal: { select: { cuisine: true, mealType: true, tags: true } },
+              },
+            }),
+            prisma.recommendationLog.findMany({
+              where: {
+                userId,
+                actionAt: { gte: since },
+                action: {
+                  in: [
+                    RecommendationAction.ORDER_CLICKED,
+                    RecommendationAction.NAVIGATION_STARTED,
+                    RecommendationAction.LIKED,
+                  ],
+                },
+                mealId: { not: null },
+              },
+              orderBy: { actionAt: 'desc' },
+              take: 30,
+              select: { mealId: true, meal: { select: { cuisine: true } } },
+            }),
+          ])
+        : [null, null, [], [], []];
+
+    const timezone = parsed.data.timezone ?? user?.timezone ?? 'UTC';
+    let automaticMealType: string | undefined;
+    try {
+      automaticMealType = parsed.data.mealType ?? inferredMealType(now, timezone);
+    } catch {
+      return reply.code(400).send({ error: 'INVALID_TIMEZONE' });
+    }
 
     const effective = {
       ...parsed.data,
+      mealType: parsed.data.mealType,
+      contextualMealType: automaticMealType,
+      timezone,
       maxBudget:
         parsed.data.maxBudget ??
-        (preference?.maxBudget == null
-          ? undefined
-          : Number(preference.maxBudget)),
+        (preference?.maxBudget == null ? undefined : Number(preference.maxBudget)),
       maxDistanceKm:
         parsed.data.maxDistanceKm ??
         (preference?.maxDistanceKm == null
           ? undefined
           : Number(preference.maxDistanceKm)),
-      vegetarian:
-        parsed.data.vegetarian ?? preference?.vegetarian ?? false,
+      vegetarian: parsed.data.vegetarian ?? preference?.vegetarian ?? false,
       vegan: parsed.data.vegan ?? preference?.vegan ?? false,
       halalOnly: parsed.data.halalOnly ?? preference?.halalOnly ?? false,
-      glutenFree:
-        parsed.data.glutenFree ?? preference?.glutenFree ?? false,
+      glutenFree: parsed.data.glutenFree ?? preference?.glutenFree ?? false,
     };
-    const profile = buildPersonalizationProfile(preference, positiveSignals);
-    const now = new Date();
+
+    const profile = buildPersonalizationProfile(
+      preference,
+      positiveSignals,
+      negativeSignals,
+    );
+    const recentMealIds = new Set(
+      recentChoices.map((choice) => choice.mealId).filter(Boolean),
+    );
+    const recentCuisines = new Set(
+      recentChoices
+        .map((choice) => choice.meal?.cuisine?.toLowerCase())
+        .filter((value): value is string => Boolean(value)),
+    );
 
     const candidates = await prisma.meal.findMany({
       where: {
         isAvailable: true,
-        ...(effective.maxBudget
-          ? { price: { lte: effective.maxBudget } }
-          : {}),
+        ...(effective.maxBudget ? { price: { lte: effective.maxBudget } } : {}),
         ...(effective.cuisine
           ? { cuisine: { equals: effective.cuisine, mode: 'insensitive' } }
           : {}),
-        ...(effective.mealType
-          ? {
-              mealType: {
-                equals: effective.mealType,
-                mode: 'insensitive',
-              },
-            }
+        ...(parsed.data.mealType
+          ? { mealType: { equals: parsed.data.mealType, mode: 'insensitive' } }
           : {}),
         ...(effective.vegetarian ? { isVegetarian: true } : {}),
         ...(effective.vegan ? { isVegan: true } : {}),
@@ -201,10 +265,32 @@ export const registerRecommendationRoutes = async (
       },
     });
 
-    const ranked = candidates
+    const restaurantIds = [...new Set(candidates.map((meal) => meal.restaurant.id))];
+    const operatingHours = restaurantIds.length
+      ? await prisma.restaurantOperatingHour.findMany({
+          where: { restaurantId: { in: restaurantIds } },
+        })
+      : [];
+    const hoursByRestaurant = new Map<string, typeof operatingHours>();
+    operatingHours.forEach((hour) => {
+      const current = hoursByRestaurant.get(hour.restaurantId) ?? [];
+      current.push(hour);
+      hoursByRestaurant.set(hour.restaurantId, current);
+    });
+
+    const scored = candidates
       .map((meal) => {
+        const hours = hoursByRestaurant.get(meal.restaurant.id) ?? [];
+        if (!isOpenAt(hours, now, timezone)) return null;
+
         const personal = personalizationScore(meal, profile);
         if (personal.excluded) return null;
+        const contextual = contextScoreV5(meal, {
+          mood: effective.mood,
+          hungerLevel: effective.hungerLevel,
+          mealType: effective.contextualMealType,
+        });
+        const freshness = freshnessScoreV5(meal.updatedAt, now);
         const rating = Number(meal.restaurant.averageRating);
         const reviewConfidence = Math.min(
           Math.log10(meal.restaurant.reviewCount + 1) / 2,
@@ -212,8 +298,7 @@ export const registerRecommendationRoutes = async (
         );
         const verifiedBonus = meal.restaurant.isVerified ? 0.3 : 0;
         const distance =
-          effective.latitude !== undefined &&
-          effective.longitude !== undefined
+          effective.latitude !== undefined && effective.longitude !== undefined
             ? distanceKm(
                 effective.latitude,
                 effective.longitude,
@@ -246,6 +331,11 @@ export const registerRecommendationRoutes = async (
         const budgetFitBonus = effective.maxBudget
           ? Math.max(0, 1 - Number(meal.price) / effective.maxBudget) * 0.25
           : 0;
+        const repeatPenalty = recentMealIds.has(meal.id)
+          ? 0.6
+          : meal.cuisine && recentCuisines.has(meal.cuisine.toLowerCase())
+            ? 0.18
+            : 0;
         const score =
           rating +
           reviewConfidence +
@@ -253,11 +343,15 @@ export const registerRecommendationRoutes = async (
           sponsoredBonus +
           proximityBonus +
           budgetFitBonus +
-          personal.score;
+          personal.score +
+          contextual.score +
+          freshness.score -
+          repeatPenalty;
+
         const reasons = [
           effective.maxBudget ? 'WITHIN_BUDGET' : null,
           effective.cuisine ? 'CUISINE_MATCH' : null,
-          effective.mealType ? 'MEAL_TYPE_MATCH' : null,
+          parsed.data.mealType ? 'MEAL_TYPE_MATCH' : 'TIME_CONTEXT_MATCH',
           effective.vegetarian ? 'VEGETARIAN_MATCH' : null,
           effective.vegan ? 'VEGAN_MATCH' : null,
           effective.halalOnly ? 'HALAL_MATCH' : null,
@@ -265,14 +359,16 @@ export const registerRecommendationRoutes = async (
           distance !== null && distance <= 5 ? 'NEARBY' : null,
           meal.restaurant.isVerified ? 'VERIFIED_RESTAURANT' : null,
           rating >= 4 ? 'HIGH_RATING' : null,
+          freshness.stale ? 'MENU_STALE_PENALTY' : 'MENU_FRESHNESS',
+          repeatPenalty > 0 ? 'RECENT_CHOICE_PENALTY' : null,
           smartCampaign ? `SMART_CAMPAIGN:${smartCampaign.id}` : null,
           ...personal.reasons,
+          ...contextual.reasons,
         ].filter((value): value is string => Boolean(value));
 
         return {
           score,
-          distanceKm:
-            distance === null ? null : Math.round(distance * 10) / 10,
+          distanceKm: distance === null ? null : Math.round(distance * 10) / 10,
           isSponsored: sponsored,
           boostId: legacyBoost,
           disclosure: sponsored
@@ -309,9 +405,13 @@ export const registerRecommendationRoutes = async (
           item.distanceKm === null ||
           item.distanceKm <= effective.maxDistanceKm,
       )
-      .sort((a, b) => b.score - a.score)
-      .slice(0, effective.limit)
-      .map((item, index) => ({ ...item, rank: index + 1 }));
+      .sort((a, b) => b.score - a.score);
+
+    const ranked = diversifyV5(scored, effective.limit).map((item, index) => ({
+      ...item,
+      rank: index + 1,
+    }));
+    const confidence = confidenceV5(ranked.map((item) => item.score));
 
     const session = await prisma.recommendationSession.create({
       data: {
@@ -322,7 +422,7 @@ export const registerRecommendationRoutes = async (
         maxDistanceKm: effective.maxDistanceKm,
         hungerLevel: effective.hungerLevel,
         mood: effective.mood,
-        mealType: effective.mealType,
+        mealType: effective.contextualMealType,
         requestContext: effective,
       },
       select: { id: true },
@@ -339,7 +439,7 @@ export const registerRecommendationRoutes = async (
           rank: item.rank,
           reasonCodes: item.reasons,
           explanation: item.disclosure,
-          algorithmVersion: 'hybrid-v4-commercially-safe',
+          algorithmVersion: 'decision-engine-v5',
           isSponsored: item.isSponsored,
           boostId: item.boostId,
         })),
@@ -348,10 +448,17 @@ export const registerRecommendationRoutes = async (
 
     return {
       sessionId: session.id,
-      algorithmVersion: 'hybrid-v4-commercially-safe',
+      algorithmVersion: 'decision-engine-v5',
       personalized: Boolean(
-        userId && (preference || positiveSignals.length > 0),
+        userId &&
+          (preference || positiveSignals.length > 0 || negativeSignals.length > 0),
       ),
+      confidence: Math.round(confidence * 100) / 100,
+      decisionMode: confidence >= 0.72 ? 'DECISIVE' : 'EXPLORE',
+      context: {
+        mealType: effective.contextualMealType,
+        timezone,
+      },
       sponsoredPolicy:
         'Sponsored results receive a small capped bonus, require targeting eligibility and are always disclosed.',
       results: ranked.map(({ boostId: _boostId, reasons, ...item }) => ({
