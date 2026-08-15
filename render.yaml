@@ -21,6 +21,10 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      - key: PAYMENT_CONFIRMATION_SECRET
+        generateValue: true
+      - key: PUSH_TOKEN_ENCRYPTION_KEY
+        sync: false
 
 databases:
   - name: decidoo-db
