@@ -29,23 +29,21 @@ class AuthSessionController extends ChangeNotifier {
     _errorCode = null;
     notifyListeners();
 
-    final refreshToken = await _storage.read(key: _refreshTokenKey);
-    if (refreshToken == null || refreshToken.isEmpty) {
-      _loading = false;
-      notifyListeners();
-      return;
-    }
-
     try {
+      final refreshToken = await _storage.read(key: _refreshTokenKey);
+      if (refreshToken == null || refreshToken.isEmpty) return;
+
       _session = await _api.refresh(refreshToken);
       await _persist(_session!);
     } on AuthApiException catch (error) {
       _errorCode = error.code;
       _session = null;
       if (_isTerminalAuthError(error)) {
-        await _clearStoredTokens();
+        await _clearStoredTokensSafely();
       }
     } catch (_) {
+      // Secure storage, device-keystore and network failures must never prevent
+      // the app from reaching the sign-in screen.
       _errorCode = 'SERVICE_UNAVAILABLE';
       _session = null;
     } finally {
@@ -69,8 +67,14 @@ class AuthSessionController extends ChangeNotifier {
   }
 
   Future<bool> _performRefresh() async {
-    final refreshToken = _session?.refreshToken ??
-        await _storage.read(key: _refreshTokenKey);
+    String? refreshToken;
+    try {
+      refreshToken = _session?.refreshToken ??
+          await _storage.read(key: _refreshTokenKey);
+    } catch (_) {
+      _errorCode = 'SERVICE_UNAVAILABLE';
+      return false;
+    }
     if (refreshToken == null || refreshToken.isEmpty) return false;
 
     try {
@@ -84,7 +88,7 @@ class AuthSessionController extends ChangeNotifier {
       _errorCode = error.code;
       if (_isTerminalAuthError(error)) {
         _session = null;
-        await _clearStoredTokens();
+        await _clearStoredTokensSafely();
         notifyListeners();
       }
       return false;
@@ -137,7 +141,7 @@ class AuthSessionController extends ChangeNotifier {
     final refreshToken = _session?.refreshToken;
     _session = null;
     _errorCode = null;
-    await _clearStoredTokens();
+    await _clearStoredTokensSafely();
     notifyListeners();
 
     if (refreshToken != null) {
@@ -183,8 +187,14 @@ class AuthSessionController extends ChangeNotifier {
     ]);
   }
 
-  Future<void> _clearStoredTokens() => Future.wait([
+  Future<void> _clearStoredTokensSafely() async {
+    try {
+      await Future.wait([
         _storage.delete(key: _accessTokenKey),
         _storage.delete(key: _refreshTokenKey),
       ]);
+    } catch (_) {
+      // A keystore failure cannot block logout or app startup.
+    }
+  }
 }

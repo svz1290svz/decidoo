@@ -11,7 +11,7 @@ import 'src/store_ready_gate.dart';
 void main() {
   final reporter = ErrorReporter();
 
-  runZonedGuarded(() async {
+  runZonedGuarded(() {
     WidgetsFlutterBinding.ensureInitialized();
 
     FlutterError.onError = (details) {
@@ -39,17 +39,18 @@ void main() {
     };
 
     final sessionController = AuthSessionController();
-    await sessionController.restore();
-
     final pushService = FirebasePushService(sessionController);
-    await pushService.initialize();
 
+    // Render the application before touching secure storage, networking or
+    // Firebase. External service failures must never prevent first paint.
     runApp(
       PushNotificationHost(
         service: pushService,
         child: StoreReadyGate(controller: sessionController),
       ),
     );
+
+    unawaited(_bootstrap(sessionController, pushService, reporter));
   }, (error, stackTrace) {
     unawaited(
       reporter.record(
@@ -60,4 +61,36 @@ void main() {
       ),
     );
   });
+}
+
+Future<void> _bootstrap(
+  AuthSessionController sessionController,
+  FirebasePushService pushService,
+  ErrorReporter reporter,
+) async {
+  try {
+    await sessionController.restore();
+  } catch (error, stackTrace) {
+    unawaited(
+      reporter.record(
+        error,
+        stackTrace,
+        fatal: false,
+        source: 'session_bootstrap',
+      ),
+    );
+  }
+
+  try {
+    await pushService.initialize();
+  } catch (error, stackTrace) {
+    unawaited(
+      reporter.record(
+        error,
+        stackTrace,
+        fatal: false,
+        source: 'push_bootstrap',
+      ),
+    );
+  }
 }
