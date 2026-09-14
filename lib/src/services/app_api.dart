@@ -3,7 +3,22 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../auth/auth_session_controller.dart';
+import 'location_service.dart';
 import 'offline_cache.dart';
+
+List<Map<String, dynamic>> parseDecisionResults(
+  Map<String, dynamic> data,
+) {
+  final primary = data['decision'];
+  final alternatives = data['alternatives'];
+  return [
+    if (primary is Map) primary.cast<String, dynamic>(),
+    if (alternatives is List)
+      ...alternatives
+          .whereType<Map>()
+          .map((item) => item.cast<String, dynamic>()),
+  ];
+}
 
 class AppApiException implements Exception {
   const AppApiException(this.code, {this.statusCode});
@@ -20,8 +35,10 @@ class AppApi {
     this.controller, {
     HttpClient? client,
     OfflineCache? cache,
+    LocationService? locationService,
   })  : _client = client ?? HttpClient(),
-        _cache = cache ?? OfflineCache();
+        _cache = cache ?? OfflineCache(),
+        _locationService = locationService ?? LocationService();
 
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
@@ -32,6 +49,7 @@ class AppApi {
   final AuthSessionController controller;
   final HttpClient _client;
   final OfflineCache _cache;
+  final LocationService _locationService;
 
   String _cacheKey(String key) =>
       '${controller.session?.user.id ?? 'anonymous'}_$key';
@@ -165,6 +183,15 @@ class AppApi {
     String? mood,
     int? hungerLevel,
   }) async {
+    if (latitude == null && longitude == null) {
+      try {
+        final location = await _locationService.currentLocation();
+        latitude = location.latitude;
+        longitude = location.longitude;
+      } on LocationServiceException {
+        // Location improves V7 context but is never required to get a decision.
+      }
+    }
     final requestBody = <String, dynamic>{
       if (maxBudget != null) 'maxBudget': maxBudget,
       if (latitude != null) 'latitude': latitude,
@@ -182,18 +209,19 @@ class AppApi {
         'recommendations_${base64Url.encode(utf8.encode(jsonEncode(requestBody)))}';
     final data = await _cachedRequest(
       cacheKey,
-      () => _request('POST', '/v1/recommendations', body: requestBody),
+      () => _request('POST', '/v1/decide', body: requestBody),
       ttl: const Duration(hours: 2),
     );
     final offline = data['_offline'] == true;
     final sessionId = offline ? null : data['sessionId']?.toString();
-    return (data['results'] as List? ?? const [])
-        .cast<Map<String, dynamic>>()
+    return parseDecisionResults(data)
         .map(
           (item) => {
             ...item,
             if (sessionId != null) '_recommendationSessionId': sessionId,
             '_attributionLive': !offline,
+            '_decisionEngine': data['algorithmVersion'],
+            '_decisionContext': data['context'],
           },
         )
         .toList();
@@ -220,6 +248,20 @@ class AppApi {
         if (mealId != null) 'mealId': mealId,
         'action': action,
         'idempotencyKey': idempotencyKey,
+      },
+    );
+  }
+
+  Future<void> recordRecommendationFeedback({
+    required String recommendationLogId,
+    required String action,
+  }) async {
+    await _request(
+      'POST',
+      '/v1/recommendations/feedback',
+      body: {
+        'recommendationLogId': recommendationLogId,
+        'action': action,
       },
     );
   }

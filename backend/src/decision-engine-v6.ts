@@ -47,9 +47,11 @@ export const weatherScoreV6 = (
     reasons.push('WEATHER_COMFORT_FIT');
   }
 
-  const hot =
-    (temperature !== undefined && temperature >= 27) ||
-    ['hot', 'sunny', 'clear'].some((key) => condition.includes(key));
+  // When a temperature is available it is authoritative. A clear winter day
+  // must not be treated as hot merely because the condition says "Clear".
+  const hot = temperature !== undefined
+    ? temperature >= 27
+    : ['hot', 'sunny'].some((key) => condition.includes(key));
   if (hot && includesAny(tags, ['cold', 'fresh', 'salad', 'light', 'bowl', 'fruit'])) {
     score += 0.28;
     reasons.push('WEATHER_FRESH_FIT');

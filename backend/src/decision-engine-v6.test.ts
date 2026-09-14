@@ -21,6 +21,21 @@ test('weatherScoreV6 boosts fresh food in hot weather', () => {
   assert.deepEqual(result.reasons, ['WEATHER_FRESH_FIT']);
 });
 
+test('weatherScoreV6 does not treat a clear cold day as hot', () => {
+  const result = weatherScoreV6(['fresh', 'salad'], {
+    condition: 'Clear',
+    temperatureC: 8,
+  });
+  assert.equal(result.score, 0);
+  assert.deepEqual(result.reasons, []);
+});
+
+test('weatherScoreV6 uses a hot condition only when temperature is unavailable', () => {
+  const result = weatherScoreV6(['fresh', 'salad'], { condition: 'Hot' });
+  assert.equal(result.score, 0.28);
+  assert.deepEqual(result.reasons, ['WEATHER_FRESH_FIT']);
+});
+
 test('decideV6 selects one primary decision and at most two alternatives', () => {
   const candidates: DecisionCandidateV6[] = [
     { score: 4.4, reasons: [], meal: { id: '1', name: 'Burger', cuisine: 'American', mealType: 'Dinner', tags: ['burger'] }, restaurant: { id: 'r1', name: 'A' } },

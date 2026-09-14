@@ -289,6 +289,13 @@ class _RecommendationPageState extends State<_RecommendationPage> {
     final meal = (item['meal'] as Map?)?.cast<String, dynamic>() ?? const {};
     if (sessionId == null || restaurant['id'] == null) return;
     try {
+      final recommendationLogId = item['recommendationLogId']?.toString();
+      if (recommendationLogId != null) {
+        await widget.appApi.recordRecommendationFeedback(
+          recommendationLogId: recommendationLogId,
+          action: action,
+        );
+      }
       await widget.appApi.recordMonetizationAction(
         sessionId: sessionId,
         restaurantId: restaurant['id'].toString(),
