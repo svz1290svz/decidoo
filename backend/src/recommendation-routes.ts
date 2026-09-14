@@ -428,8 +428,8 @@ export const registerRecommendationRoutes = async (
       select: { id: true },
     });
 
-    if (ranked.length > 0) {
-      await prisma.recommendationLog.createMany({
+    const createdLogs = ranked.length > 0
+      ? await prisma.recommendationLog.createManyAndReturn({
         data: ranked.map((item) => ({
           sessionId: session.id,
           userId,
@@ -443,8 +443,10 @@ export const registerRecommendationRoutes = async (
           isSponsored: item.isSponsored,
           boostId: item.boostId,
         })),
-      });
-    }
+        select: { id: true, mealId: true },
+      })
+      : [];
+    const logIdByMeal = new Map(createdLogs.map((log) => [log.mealId, log.id]));
 
     return {
       sessionId: session.id,
@@ -463,6 +465,7 @@ export const registerRecommendationRoutes = async (
         'Sponsored results receive a small capped bonus, require targeting eligibility and are always disclosed.',
       results: ranked.map(({ boostId: _boostId, reasons, ...item }) => ({
         ...item,
+        recommendationLogId: logIdByMeal.get(item.meal.id) ?? null,
         reasons: reasons.filter(
           (reason) => !reason.startsWith('SMART_CAMPAIGN:'),
         ),

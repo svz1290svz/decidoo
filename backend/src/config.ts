@@ -12,6 +12,8 @@ const envSchema = z
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
     PUSH_TOKEN_ENCRYPTION_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/).optional(),
     PAYMENT_CONFIRMATION_SECRET: z.string().min(32).optional(),
+    WEATHER_API_BASE_URL: z.string().url().default('https://api.open-meteo.com/v1/forecast'),
+    WEATHER_API_TIMEOUT_MS: z.coerce.number().int().min(250).max(10000).default(2500),
   })
   .superRefine((value, context) => {
     if (value.NODE_ENV !== 'production') return;

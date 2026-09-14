@@ -7,6 +7,9 @@ build/
 .flutter-plugins-dependencies
 .pub-cache/
 coverage/
+backend/node_modules/
+backend/dist/
+backend/package-lock.json
 
 # Android
 android/.gradle/
